@@ -7,7 +7,7 @@ import { useParams } from "next/navigation";
 import { EmptyRow, Message, PageHeader } from "@/components/Ui";
 import { ApiError, compactBody, fetchJson, patchJson, postJson } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
-import { dash } from "@/lib/labels";
+import { dash, removeActionFlags } from "@/lib/labels";
 import type {
   CartridgeModel,
   InstalledCartridge,
@@ -38,7 +38,7 @@ export default function PrinterCardPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [installForm, setInstallForm] = useState({ cartridge_model_id: "", item_condition: "new", slot_name: "Black", color_role: "black", comment: "" });
-  const [removeForm, setRemoveForm] = useState({ installed_cartridge_id: "", removal_reason: "", send_to_refill: false, write_off: false, comment: "" });
+  const [removeForm, setRemoveForm] = useState({ installed_cartridge_id: "", removal_reason: "", removal_action: "remove_only", comment: "" });
   const [moveForm, setMoveForm] = useState({ to_location_id: "", reason: "", notes: "" });
   const [repairForm, setRepairForm] = useState({ service_company: "", reason: "", notes: "" });
   const [returnForm, setReturnForm] = useState({ repair_id: "", result: "", notes: "" });
@@ -188,16 +188,17 @@ export default function PrinterCardPage() {
 
         <form className="panel" onSubmit={(event) => submitForm(event, async () => {
           await postJson("/api/cartridge-transactions/remove", compactBody({
-            ...removeForm,
             installed_cartridge_id: Number(removeForm.installed_cartridge_id),
+            removal_reason: removeForm.removal_reason,
+            comment: removeForm.comment,
+            ...removeActionFlags(removeForm.removal_action),
           }));
-          setRemoveForm({ installed_cartridge_id: "", removal_reason: "", send_to_refill: false, write_off: false, comment: "" });
+          setRemoveForm({ installed_cartridge_id: "", removal_reason: "", removal_action: "remove_only", comment: "" });
         }, t.cartridgeRemoved)}>
           <h2>{t.removeCartridge}</h2>
           <label>{t.installedCartridge}<select required value={removeForm.installed_cartridge_id} onChange={(e) => setRemoveForm({ ...removeForm, installed_cartridge_id: e.target.value })}><option value=""></option>{installed.map((item) => <option key={item.id} value={item.id}>{cartridgeModelName.get(item.cartridge_model_id) ?? `#${item.id}`} / {dash(item.slot_name)}</option>)}</select></label>
           <label>{t.removalReason}<input required value={removeForm.removal_reason} onChange={(e) => setRemoveForm({ ...removeForm, removal_reason: e.target.value })} /></label>
-          <label className="checkbox"><input checked={removeForm.send_to_refill} type="checkbox" onChange={(e) => setRemoveForm({ ...removeForm, send_to_refill: e.target.checked })} />{t.sendToRefill}</label>
-          <label className="checkbox"><input checked={removeForm.write_off} type="checkbox" onChange={(e) => setRemoveForm({ ...removeForm, write_off: e.target.checked })} />{t.writeOff}</label>
+          <label>{t.removalAction}<select value={removeForm.removal_action} onChange={(e) => setRemoveForm({ ...removeForm, removal_action: e.target.value })}><option value="return_to_stock">{t.returnToStock}</option><option value="send_to_refill">{t.sendToRefill}</option><option value="write_off">{t.writeOff}</option><option value="remove_only">{t.removeOnly}</option></select></label>
           <label>{t.comment}<textarea value={removeForm.comment} onChange={(e) => setRemoveForm({ ...removeForm, comment: e.target.value })} /></label>
           <button className="button" disabled={saving} type="submit">{t.save}</button>
         </form>

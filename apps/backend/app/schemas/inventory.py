@@ -64,6 +64,7 @@ class InstallCartridgeRequest(BaseModel):
 class RemoveCartridgeRequest(BaseModel):
     installed_cartridge_id: int
     removal_reason: str = Field(min_length=1, max_length=255)
+    return_to_stock: bool = False
     send_to_refill: bool = False
     write_off: bool = False
     comment: str | None = None
@@ -117,4 +118,3 @@ class CartridgeStockSummaryRead(BaseModel):
     installed_total: int
     total: int
     min_stock_level: int
-

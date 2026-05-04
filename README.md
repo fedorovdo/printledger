@@ -115,8 +115,15 @@ Remove a cartridge:
 
 1. Open `http://localhost:3000/printers`.
 2. Select a printer in `Установленные картриджи` and click `Показать установленные`.
-3. Use `Снять картридж`, select installed cartridge, add removal reason, and optionally choose refill/write-off.
+3. Use `Снять картридж`, select installed cartridge, add removal reason/comment, and choose one follow-up action.
 4. Submit the form and refresh installed cartridges.
+
+Removal follow-up actions:
+
+- `Вернуть на склад` - creates a `return_to_stock` transaction and returns one cartridge to stock with the same condition, `new` or `refilled`.
+- `Отправить на заправку` - creates a `send_to_refill` transaction.
+- `Списать` - creates a `write_off` transaction.
+- `Просто снять` - records only the removal from the printer.
 
 Move a printer:
 
@@ -170,7 +177,7 @@ The card shows printer details with resolved printer model and location names, p
 Available card actions:
 
 - Install a cartridge into the current printer.
-- Remove an installed cartridge and optionally send it to refill or write it off.
+- Remove an installed cartridge and choose exactly one follow-up action: return to stock, send to refill, write off, or remove only.
 - Move the printer to another location.
 - Send the printer to repair and return it from repair.
 - Archive or write off the printer.
@@ -317,7 +324,8 @@ Remove the cartridge:
 $removeBody = @{
   installed_cartridge_id = $installed[0].id
   removal_reason = "Smoke removal"
-  send_to_refill = $true
+  return_to_stock = $true
+  send_to_refill = $false
   write_off = $false
   comment = "Smoke remove"
 } | ConvertTo-Json

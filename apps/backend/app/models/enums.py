@@ -46,6 +46,7 @@ class CartridgeTransactionType(str, Enum):
     correction_minus = "correction_minus"
     install = "install"
     remove = "remove"
+    return_to_stock = "return_to_stock"
     send_to_refill = "send_to_refill"
     receive_from_refill = "receive_from_refill"
     write_off = "write_off"

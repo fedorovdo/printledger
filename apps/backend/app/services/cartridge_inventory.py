@@ -52,6 +52,7 @@ def _transaction_stock_delta(
 
     if transaction.transaction_type in {
         CartridgeTransactionType.correction_plus,
+        CartridgeTransactionType.return_to_stock,
         CartridgeTransactionType.stock_in_new,
         CartridgeTransactionType.stock_in_refilled,
         CartridgeTransactionType.receive_from_refill,
@@ -228,6 +229,21 @@ def remove_cartridge(
     db: Session,
     payload: RemoveCartridgeRequest,
 ) -> PrinterInstalledCartridge:
+    selected_followup_actions = sum(
+        1
+        for action_selected in (
+            payload.return_to_stock,
+            payload.send_to_refill,
+            payload.write_off,
+        )
+        if action_selected
+    )
+    if selected_followup_actions > 1:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only one remove follow-up action can be selected",
+        )
+
     installed = _get_or_404(db, PrinterInstalledCartridge, payload.installed_cartridge_id)
     if installed.status != InstalledCartridgeStatus.installed:
         raise HTTPException(
@@ -273,6 +289,23 @@ def remove_cartridge(
     )
     db.add(remove_transaction)
     db.flush()
+
+    if payload.return_to_stock:
+        db.add(
+            CartridgeInventoryTransaction(
+                cartridge_model_id=installed.cartridge_model_id,
+                transaction_type=CartridgeTransactionType.return_to_stock,
+                quantity=1,
+                item_condition=installed.item_condition,
+                printer_id=installed.printer_id,
+                location_id=installed.printer.current_location_id,
+                slot_name=installed.slot_name,
+                color_role=installed.color_role,
+                reason=payload.removal_reason,
+                comment=payload.comment,
+                related_transaction_id=remove_transaction.id,
+            )
+        )
 
     if payload.send_to_refill:
         db.add(

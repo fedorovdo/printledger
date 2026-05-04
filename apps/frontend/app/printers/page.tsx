@@ -6,7 +6,7 @@ import Link from "next/link";
 import { EmptyRow, Message, PageHeader } from "@/components/Ui";
 import { compactBody, fetchJson, patchJson, postJson } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
-import { dash } from "@/lib/labels";
+import { dash, formatPrinterLabel, removeActionFlags } from "@/lib/labels";
 import type {
   CartridgeModel,
   InstalledCartridge,
@@ -46,7 +46,7 @@ export default function PrintersPage() {
   const [selectedPrinterId, setSelectedPrinterId] = useState("");
   const [modelForm, setModelForm] = useState(initialPrinterModel);
   const [printerForm, setPrinterForm] = useState(initialPrinter);
-  const [removeForm, setRemoveForm] = useState({ installed_cartridge_id: "", removal_reason: "", send_to_refill: false, write_off: false, comment: "" });
+  const [removeForm, setRemoveForm] = useState({ installed_cartridge_id: "", removal_reason: "", removal_action: "remove_only", comment: "" });
   const [moveForm, setMoveForm] = useState({ printer_id: "", to_location_id: "", reason: "", notes: "" });
   const [repairForm, setRepairForm] = useState({ printer_id: "", service_company: "", reason: "", notes: "" });
   const [returnForm, setReturnForm] = useState({ repair_id: "", result: "", notes: "" });
@@ -60,8 +60,16 @@ export default function PrintersPage() {
     () => new Map(printerModels.map((model) => [model.id, model.name])),
     [printerModels],
   );
+  const printerModelMap = useMemo(
+    () => new Map(printerModels.map((model) => [model.id, model])),
+    [printerModels],
+  );
   const locationName = useMemo(
     () => new Map(locations.map((location) => [location.id, location.display_name])),
+    [locations],
+  );
+  const locationMap = useMemo(
+    () => new Map(locations.map((location) => [location.id, location])),
     [locations],
   );
   const cartridgeModelName = useMemo(
@@ -202,7 +210,7 @@ export default function PrintersPage() {
       <div className="panel wide">
         <h2>{t.installedCartridges}</h2>
         <div className="inline-controls">
-          <label>{t.selectedPrinter}<select value={selectedPrinterId} onChange={(e) => setSelectedPrinterId(e.target.value)}><option value=""></option>{printers.map((printer) => <option key={printer.id} value={printer.id}>{printer.inventory_number ?? `#${printer.id}`}</option>)}</select></label>
+          <label>{t.selectedPrinter}<select value={selectedPrinterId} onChange={(e) => setSelectedPrinterId(e.target.value)}><option value=""></option>{printers.map((printer) => <option key={printer.id} value={printer.id}>{formatPrinterLabel(printer, printerModelMap, locationMap)}</option>)}</select></label>
           <button className="button secondary" type="button" onClick={() => void refreshInstalled()}>{t.showInstalled}</button>
         </div>
         <div className="table-wrap compact">
@@ -228,15 +236,19 @@ export default function PrintersPage() {
 
       <div className="form-grid three">
         <form className="panel" onSubmit={(event) => submitForm(event, async () => {
-          await postJson("/api/cartridge-transactions/remove", compactBody({ ...removeForm, installed_cartridge_id: Number(removeForm.installed_cartridge_id) }));
-          setRemoveForm({ installed_cartridge_id: "", removal_reason: "", send_to_refill: false, write_off: false, comment: "" });
+          await postJson("/api/cartridge-transactions/remove", compactBody({
+            installed_cartridge_id: Number(removeForm.installed_cartridge_id),
+            removal_reason: removeForm.removal_reason,
+            comment: removeForm.comment,
+            ...removeActionFlags(removeForm.removal_action),
+          }));
+          setRemoveForm({ installed_cartridge_id: "", removal_reason: "", removal_action: "remove_only", comment: "" });
           await Promise.all([refreshInstalled(), fetchJson("/api/cartridge-transactions")]);
         }, t.cartridgeRemoved)}>
           <h2>{t.removeCartridge}</h2>
           <label>{t.installedCartridge}<select required value={removeForm.installed_cartridge_id} onChange={(e) => setRemoveForm({ ...removeForm, installed_cartridge_id: e.target.value })}><option value=""></option>{installed.map((item) => <option key={item.id} value={item.id}>{cartridgeModelName.get(item.cartridge_model_id) ?? `#${item.id}`} / {dash(item.slot_name)}</option>)}</select></label>
           <label>{t.removalReason}<input required value={removeForm.removal_reason} onChange={(e) => setRemoveForm({ ...removeForm, removal_reason: e.target.value })} /></label>
-          <label className="checkbox"><input checked={removeForm.send_to_refill} type="checkbox" onChange={(e) => setRemoveForm({ ...removeForm, send_to_refill: e.target.checked })} />{t.sendToRefill}</label>
-          <label className="checkbox"><input checked={removeForm.write_off} type="checkbox" onChange={(e) => setRemoveForm({ ...removeForm, write_off: e.target.checked })} />{t.writeOff}</label>
+          <label>{t.removalAction}<select value={removeForm.removal_action} onChange={(e) => setRemoveForm({ ...removeForm, removal_action: e.target.value })}><option value="return_to_stock">{t.returnToStock}</option><option value="send_to_refill">{t.sendToRefill}</option><option value="write_off">{t.writeOff}</option><option value="remove_only">{t.removeOnly}</option></select></label>
           <label>{t.comment}<textarea value={removeForm.comment} onChange={(e) => setRemoveForm({ ...removeForm, comment: e.target.value })} /></label>
           <button className="button" disabled={saving} type="submit">{t.save}</button>
         </form>
@@ -247,7 +259,7 @@ export default function PrintersPage() {
           await loadData();
         }, t.printerMoved)}>
           <h2>{t.movePrinter}</h2>
-          <label>{t.printers}<select required value={moveForm.printer_id} onChange={(e) => setMoveForm({ ...moveForm, printer_id: e.target.value })}><option value=""></option>{printers.map((printer) => <option key={printer.id} value={printer.id}>{printer.inventory_number ?? `#${printer.id}`}</option>)}</select></label>
+          <label>{t.printers}<select required value={moveForm.printer_id} onChange={(e) => setMoveForm({ ...moveForm, printer_id: e.target.value })}><option value=""></option>{printers.map((printer) => <option key={printer.id} value={printer.id}>{formatPrinterLabel(printer, printerModelMap, locationMap)}</option>)}</select></label>
           <label>{t.toLocation}<select required value={moveForm.to_location_id} onChange={(e) => setMoveForm({ ...moveForm, to_location_id: e.target.value })}><option value=""></option>{locations.map((location) => <option key={location.id} value={location.id}>{location.display_name}</option>)}</select></label>
           <label>{t.reason}<input value={moveForm.reason} onChange={(e) => setMoveForm({ ...moveForm, reason: e.target.value })} /></label>
           <label>{t.notes}<textarea value={moveForm.notes} onChange={(e) => setMoveForm({ ...moveForm, notes: e.target.value })} /></label>
@@ -260,7 +272,7 @@ export default function PrintersPage() {
           await Promise.all([loadData(), selectedPrinterId ? refreshInstalled() : Promise.resolve()]);
         }, t.repairSent)}>
           <h2>{t.sendToRepair}</h2>
-          <label>{t.printers}<select required value={repairForm.printer_id} onChange={(e) => setRepairForm({ ...repairForm, printer_id: e.target.value })}><option value=""></option>{printers.map((printer) => <option key={printer.id} value={printer.id}>{printer.inventory_number ?? `#${printer.id}`}</option>)}</select></label>
+          <label>{t.printers}<select required value={repairForm.printer_id} onChange={(e) => setRepairForm({ ...repairForm, printer_id: e.target.value })}><option value=""></option>{printers.map((printer) => <option key={printer.id} value={printer.id}>{formatPrinterLabel(printer, printerModelMap, locationMap)}</option>)}</select></label>
           <label>{t.serviceCompany}<input value={repairForm.service_company} onChange={(e) => setRepairForm({ ...repairForm, service_company: e.target.value })} /></label>
           <label>{t.reason}<input value={repairForm.reason} onChange={(e) => setRepairForm({ ...repairForm, reason: e.target.value })} /></label>
           <label>{t.notes}<textarea value={repairForm.notes} onChange={(e) => setRepairForm({ ...repairForm, notes: e.target.value })} /></label>
@@ -285,7 +297,7 @@ export default function PrintersPage() {
           await loadData();
         }, t.printerArchived)}>
           <h2>{t.archivePrinter}</h2>
-          <label>{t.printers}<select required value={archiveForm.printer_id} onChange={(e) => setArchiveForm({ ...archiveForm, printer_id: e.target.value })}><option value=""></option>{printers.map((printer) => <option key={printer.id} value={printer.id}>{printer.inventory_number ?? `#${printer.id}`}</option>)}</select></label>
+          <label>{t.printers}<select required value={archiveForm.printer_id} onChange={(e) => setArchiveForm({ ...archiveForm, printer_id: e.target.value })}><option value=""></option>{printers.map((printer) => <option key={printer.id} value={printer.id}>{formatPrinterLabel(printer, printerModelMap, locationMap)}</option>)}</select></label>
           <label>{t.archiveReason}<select value={archiveForm.archive_reason} onChange={(e) => setArchiveForm({ ...archiveForm, archive_reason: e.target.value })}><option value="archived">archived</option><option value="written_off">written_off</option><option value="lost">lost</option><option value="duplicate">duplicate</option><option value="error">error</option></select></label>
           <label>{t.comment}<textarea value={archiveForm.comment} onChange={(e) => setArchiveForm({ ...archiveForm, comment: e.target.value })} /></label>
           <button className="button" disabled={saving} type="submit">{t.save}</button>

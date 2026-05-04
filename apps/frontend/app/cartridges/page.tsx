@@ -1,13 +1,13 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 
 import { EmptyRow, Message, PageHeader } from "@/components/Ui";
 import { ApiError, compactBody, fetchJson, postJson } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
-import { dash } from "@/lib/labels";
-import type { CartridgeModel, CartridgeStock, Printer } from "@/lib/types";
+import { dash, formatPrinterLabel } from "@/lib/labels";
+import type { CartridgeModel, CartridgeStock, Location, Printer, PrinterModel } from "@/lib/types";
 
 const initialModel = {
   vendor: "",
@@ -40,6 +40,8 @@ export default function CartridgesPage() {
   const [stock, setStock] = useState<CartridgeStock[]>([]);
   const [models, setModels] = useState<CartridgeModel[]>([]);
   const [printers, setPrinters] = useState<Printer[]>([]);
+  const [printerModels, setPrinterModels] = useState<PrinterModel[]>([]);
+  const [locations, setLocations] = useState<Location[]>([]);
   const [modelForm, setModelForm] = useState(initialModel);
   const [stockInForm, setStockInForm] = useState(initialStockIn);
   const [installForm, setInstallForm] = useState(initialInstall);
@@ -48,18 +50,31 @@ export default function CartridgesPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
+  const printerModelMap = useMemo(
+    () => new Map(printerModels.map((model) => [model.id, model])),
+    [printerModels],
+  );
+  const locationMap = useMemo(
+    () => new Map(locations.map((location) => [location.id, location])),
+    [locations],
+  );
+
   async function loadData() {
     setLoading(true);
     setError(null);
     try {
-      const [stockData, modelData, printerData] = await Promise.all([
+      const [stockData, modelData, printerData, printerModelData, locationData] = await Promise.all([
         fetchJson<CartridgeStock[]>("/api/cartridge-stock"),
         fetchJson<CartridgeModel[]>("/api/cartridge-models"),
         fetchJson<Printer[]>("/api/printers"),
+        fetchJson<PrinterModel[]>("/api/printer-models"),
+        fetchJson<Location[]>("/api/locations"),
       ]);
       setStock(stockData);
       setModels(modelData);
       setPrinters(printerData);
+      setPrinterModels(printerModelData);
+      setLocations(locationData);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
     } finally {
@@ -208,7 +223,7 @@ export default function CartridgesPage() {
         <form className="panel" onSubmit={installCartridge}>
           <h2>{t.installCartridge}</h2>
           <label>{t.cartridgeModel}<select required value={installForm.cartridge_model_id} onChange={(e) => setInstallForm({ ...installForm, cartridge_model_id: e.target.value })}><option value=""></option>{models.map((model) => <option key={model.id} value={model.id}>{model.model_name}</option>)}</select></label>
-          <label>{t.printers}<select required value={installForm.printer_id} onChange={(e) => setInstallForm({ ...installForm, printer_id: e.target.value })}><option value=""></option>{printers.filter((printer) => !printer.is_archived).map((printer) => <option key={printer.id} value={printer.id}>{printer.inventory_number ?? `#${printer.id}`}</option>)}</select></label>
+          <label>{t.printers}<select required value={installForm.printer_id} onChange={(e) => setInstallForm({ ...installForm, printer_id: e.target.value })}><option value=""></option>{printers.filter((printer) => !printer.is_archived).map((printer) => <option key={printer.id} value={printer.id}>{formatPrinterLabel(printer, printerModelMap, locationMap)}</option>)}</select></label>
           <label>{t.condition}<select value={installForm.item_condition} onChange={(e) => setInstallForm({ ...installForm, item_condition: e.target.value })}><option value="new">new</option><option value="refilled">refilled</option></select></label>
           <label>{t.slotName}<input value={installForm.slot_name} onChange={(e) => setInstallForm({ ...installForm, slot_name: e.target.value })} /></label>
           <label>{t.colorRole}<select value={installForm.color_role} onChange={(e) => setInstallForm({ ...installForm, color_role: e.target.value })}><option value="black">black</option><option value="cyan">cyan</option><option value="magenta">magenta</option><option value="yellow">yellow</option><option value="other">other</option></select></label>

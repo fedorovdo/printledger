@@ -7,8 +7,15 @@ import { useParams } from "next/navigation";
 import { EmptyRow, Message, PageHeader } from "@/components/Ui";
 import { ApiError, compactBody, fetchJson, postJson } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
-import { dash, labelTransaction } from "@/lib/labels";
-import type { CartridgeModel, CartridgeStock, CartridgeTransaction, Printer } from "@/lib/types";
+import { dash, formatPrinterLabel, labelTransaction } from "@/lib/labels";
+import type {
+  CartridgeModel,
+  CartridgeStock,
+  CartridgeTransaction,
+  Location,
+  Printer,
+  PrinterModel,
+} from "@/lib/types";
 
 export default function CartridgeCardPage() {
   const params = useParams<{ id: string }>();
@@ -18,6 +25,8 @@ export default function CartridgeCardPage() {
   const [stock, setStock] = useState<CartridgeStock | null>(null);
   const [history, setHistory] = useState<CartridgeTransaction[]>([]);
   const [printers, setPrinters] = useState<Printer[]>([]);
+  const [printerModels, setPrinterModels] = useState<PrinterModel[]>([]);
+  const [locations, setLocations] = useState<Location[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -27,25 +36,37 @@ export default function CartridgeCardPage() {
   const [correctionForm, setCorrectionForm] = useState({ quantity: "1", direction: "plus", item_condition: "new", reason: "", comment: "" });
   const [refillForm, setRefillForm] = useState({ quantity: "1", reason: "", comment: "" });
 
+  const printerModelMap = useMemo(
+    () => new Map(printerModels.map((printerModel) => [printerModel.id, printerModel])),
+    [printerModels],
+  );
+  const locationMap = useMemo(
+    () => new Map(locations.map((location) => [location.id, location])),
+    [locations],
+  );
   const printerName = useMemo(
-    () => new Map(printers.map((printer) => [printer.id, printer.inventory_number ?? `#${printer.id}`])),
-    [printers],
+    () => new Map(printers.map((printer) => [printer.id, formatPrinterLabel(printer, printerModelMap, locationMap)])),
+    [printers, printerModelMap, locationMap],
   );
 
   async function loadData() {
     setLoading(true);
     setError(null);
     try {
-      const [modelData, stockData, historyData, printerData] = await Promise.all([
+      const [modelData, stockData, historyData, printerData, printerModelData, locationData] = await Promise.all([
         fetchJson<CartridgeModel>(`/api/cartridge-models/${cartridgeId}`),
         fetchJson<CartridgeStock[]>("/api/cartridge-stock"),
         fetchJson<CartridgeTransaction[]>(`/api/cartridge-models/${cartridgeId}/history`),
         fetchJson<Printer[]>("/api/printers"),
+        fetchJson<PrinterModel[]>("/api/printer-models"),
+        fetchJson<Location[]>("/api/locations"),
       ]);
       setModel(modelData);
       setStock(stockData.find((item) => item.cartridge_model_id === cartridgeId) ?? null);
       setHistory(historyData);
       setPrinters(printerData);
+      setPrinterModels(printerModelData);
+      setLocations(locationData);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
     } finally {
@@ -146,7 +167,7 @@ export default function CartridgeCardPage() {
           setInstallForm({ printer_id: "", item_condition: "new", slot_name: "Black", color_role: "black", comment: "" });
         }, t.cartridgeInstalled)}>
           <h2>{t.installCartridge}</h2>
-          <label>{t.printers}<select required value={installForm.printer_id} onChange={(e) => setInstallForm({ ...installForm, printer_id: e.target.value })}><option value=""></option>{printers.filter((printer) => !printer.is_archived).map((printer) => <option key={printer.id} value={printer.id}>{printer.inventory_number ?? `#${printer.id}`}</option>)}</select></label>
+          <label>{t.printers}<select required value={installForm.printer_id} onChange={(e) => setInstallForm({ ...installForm, printer_id: e.target.value })}><option value=""></option>{printers.filter((printer) => !printer.is_archived).map((printer) => <option key={printer.id} value={printer.id}>{formatPrinterLabel(printer, printerModelMap, locationMap)}</option>)}</select></label>
           <label>{t.condition}<select value={installForm.item_condition} onChange={(e) => setInstallForm({ ...installForm, item_condition: e.target.value })}><option value="new">new</option><option value="refilled">refilled</option></select></label>
           <label>{t.slotName}<input value={installForm.slot_name} onChange={(e) => setInstallForm({ ...installForm, slot_name: e.target.value })} /></label>
           <label>{t.colorRole}<select value={installForm.color_role} onChange={(e) => setInstallForm({ ...installForm, color_role: e.target.value })}><option value="black">black</option><option value="cyan">cyan</option><option value="magenta">magenta</option><option value="yellow">yellow</option><option value="other">other</option></select></label>
