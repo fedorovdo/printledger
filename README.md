@@ -63,6 +63,31 @@ http://localhost:3000
 - Database check: `http://localhost:8000/api/db-check`
 - PostgreSQL: `localhost:5432`
 
+## Frontend MVP
+
+Open the app at `http://localhost:3000`.
+
+Pages:
+
+- `http://localhost:3000/` - dashboard with backend, database, cartridge model, printer, and archived printer status cards.
+- `http://localhost:3000/cartridges` - cartridge stock table, cartridge model creation, and stock-in form.
+- `http://localhost:3000/printers` - printer list, printer model creation, and printer creation form.
+- `http://localhost:3000/locations` - simple create/list sections for organizations, branches, and locations.
+- `http://localhost:3000/operations` - cartridge inventory transaction list.
+
+The UI uses `NEXT_PUBLIC_API_URL` when provided and falls back to `http://localhost:8000`.
+RU is the default language; switch to EN from the top-right language control.
+
+Manual frontend checks:
+
+```powershell
+Invoke-WebRequest -UseBasicParsing http://localhost:3000
+Invoke-WebRequest -UseBasicParsing http://localhost:3000/cartridges
+Invoke-WebRequest -UseBasicParsing http://localhost:3000/printers
+Invoke-WebRequest -UseBasicParsing http://localhost:3000/locations
+Invoke-WebRequest -UseBasicParsing http://localhost:3000/operations
+```
+
 ## API v1 Foundation
 
 Minimal CRUD endpoints are available for core directories:
@@ -367,5 +392,5 @@ docker compose exec backend alembic current
 ## Notes
 
 - Secrets are not stored in code. Use `.env` locally and keep `.env.example` as a template.
-- Full cartridge movement, printer repair, printer relocation, authentication, and audit workflows are intentionally not implemented yet.
+- Full authentication, audit workflows, Excel import, and order request generation are intentionally not implemented yet.
 - Inventory balances should later be calculated from operation history rather than stored as a manually edited source of truth.

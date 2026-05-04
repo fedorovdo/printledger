@@ -1,88 +1,87 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
-const copy = {
-  ru: {
-    eyebrow: "Стартовая основа",
-    title: "PrintLedger",
-    lead: "Веб-система учета картриджей, расходников и принтеров для внутреннего использования.",
-    backend: "Backend",
-    frontend: "Frontend",
-    database: "Database",
-    ready: "FastAPI готов",
-    running: "Next.js запущен",
-    planned: "PostgreSQL подключен через Compose",
-  },
-  en: {
-    eyebrow: "Project scaffold",
-    title: "PrintLedger",
-    lead: "Internal web system for tracking printer cartridges, consumables, and printers.",
-    backend: "Backend",
-    frontend: "Frontend",
-    database: "Database",
-    ready: "FastAPI is ready",
-    running: "Next.js is running",
-    planned: "PostgreSQL is wired through Compose",
-  },
+import { PageHeader, Message } from "@/components/Ui";
+import { fetchJson } from "@/lib/api";
+import { useI18n } from "@/lib/i18n";
+import type { CartridgeModel, Printer } from "@/lib/types";
+
+type DashboardState = {
+  backend: string;
+  database: string;
+  cartridgeModels: number;
+  printers: number;
+  archivedPrinters: number;
 };
 
-type Locale = keyof typeof copy;
+export default function DashboardPage() {
+  const { t } = useI18n();
+  const [data, setData] = useState<DashboardState | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-export default function Home() {
-  const [locale, setLocale] = useState<Locale>("ru");
-  const t = copy[locale];
+  async function loadDashboard() {
+    setLoading(true);
+    setError(null);
+    try {
+      const [health, db, cartridges, printers, archived] = await Promise.all([
+        fetchJson<{ status: string }>("/health"),
+        fetchJson<{ database: string }>("/api/db-check"),
+        fetchJson<CartridgeModel[]>("/api/cartridge-models"),
+        fetchJson<Printer[]>("/api/printers"),
+        fetchJson<Printer[]>("/api/printers/archived"),
+      ]);
+      setData({
+        backend: health.status,
+        database: db.database,
+        cartridgeModels: cartridges.length,
+        printers: printers.length,
+        archivedPrinters: archived.length,
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unknown error");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    void loadDashboard();
+  }, []);
 
   return (
-    <div className="page">
-      <header className="topbar">
-        <div className="topbar-inner">
-          <div className="brand">
-            <span className="brand-mark">PL</span>
-            <span>PrintLedger</span>
+    <section>
+      <PageHeader
+        title={t.dashboard}
+        action={<button className="button secondary" onClick={loadDashboard}>{t.refresh}</button>}
+      />
+      <Message loading={loading} error={error} />
+      {data && (
+        <div className="metric-grid">
+          <div className="metric-card">
+            <span>{t.backendStatus}</span>
+            <strong>{data.backend === "ok" ? t.ok : data.backend}</strong>
           </div>
-          <div className="language-switcher" aria-label="Language switcher">
-            <button
-              className={locale === "ru" ? "active" : ""}
-              type="button"
-              onClick={() => setLocale("ru")}
-            >
-              RU
-            </button>
-            <button
-              className={locale === "en" ? "active" : ""}
-              type="button"
-              onClick={() => setLocale("en")}
-            >
-              EN
-            </button>
+          <div className="metric-card">
+            <span>{t.databaseStatus}</span>
+            <strong>{data.database === "ok" ? t.ok : data.database}</strong>
+          </div>
+          <div className="metric-card">
+            <span>{t.cartridgeModels}</span>
+            <strong>{data.cartridgeModels}</strong>
+          </div>
+          <div className="metric-card">
+            <span>{t.printerCount}</span>
+            <strong>{data.printers}</strong>
+          </div>
+          <div className="metric-card">
+            <span>{t.archivedPrinters}</span>
+            <strong>{data.archivedPrinters}</strong>
           </div>
         </div>
-      </header>
-
-      <main className="main">
-        <section className="intro">
-          <p className="eyebrow">{t.eyebrow}</p>
-          <h1>{t.title}</h1>
-          <p className="lead">{t.lead}</p>
-        </section>
-
-        <section className="status-row" aria-label="Project status">
-          <div className="status-item">
-            <p className="status-label">{t.backend}</p>
-            <p className="status-value">{t.ready}</p>
-          </div>
-          <div className="status-item">
-            <p className="status-label">{t.frontend}</p>
-            <p className="status-value">{t.running}</p>
-          </div>
-          <div className="status-item">
-            <p className="status-label">{t.database}</p>
-            <p className="status-value">{t.planned}</p>
-          </div>
-        </section>
-      </main>
-    </div>
+      )}
+    </section>
   );
 }
 
