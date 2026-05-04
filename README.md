@@ -88,6 +88,56 @@ Invoke-WebRequest -UseBasicParsing http://localhost:3000/locations
 Invoke-WebRequest -UseBasicParsing http://localhost:3000/operations
 ```
 
+### Frontend Workflows
+
+Add a cartridge model:
+
+1. Open `http://localhost:3000/cartridges`.
+2. Use `Добавить модель картриджа`.
+3. Fill vendor, model, SKU, cartridge type, minimum stock, and notes.
+4. Submit the form and check that the model appears in the stock table.
+
+Receive cartridges into stock:
+
+1. Open `http://localhost:3000/cartridges`.
+2. Use `Приход`.
+3. Select cartridge model, quantity, and condition `new` or `refilled`.
+4. Submit the form and check updated stock columns.
+
+Install a cartridge:
+
+1. Open `http://localhost:3000/cartridges`.
+2. Use `Установить картридж`.
+3. Select cartridge model, printer, condition, slot, and color role.
+4. Submit the form. If the slot is already occupied, the UI shows a clear conflict message.
+
+Remove a cartridge:
+
+1. Open `http://localhost:3000/printers`.
+2. Select a printer in `Установленные картриджи` and click `Показать установленные`.
+3. Use `Снять картридж`, select installed cartridge, add removal reason, and optionally choose refill/write-off.
+4. Submit the form and refresh installed cartridges.
+
+Move a printer:
+
+1. Open `http://localhost:3000/printers`.
+2. Use `Переместить принтер`.
+3. Select printer, target location, reason, and notes.
+4. Submit the form and check the printer location in the table.
+
+Send a printer to repair and return it:
+
+1. Open `http://localhost:3000/printers`.
+2. Use `Отправить в ремонт`.
+3. To return it, use `Вернуть из ремонта` with the repair ID from the repair history block.
+
+Archive or write off a printer:
+
+1. Open `http://localhost:3000/printers`.
+2. Use `Архивировать / списать`.
+3. Select printer, archive reason, and comment.
+4. Submit the form. The dashboard archived count updates on the next dashboard load.
+
 ## API v1 Foundation
 
 Minimal CRUD endpoints are available for core directories:

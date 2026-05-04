@@ -41,6 +41,29 @@ export type Printer = {
   is_archived: boolean;
 };
 
+export type InstalledCartridge = {
+  id: number;
+  printer_id: number;
+  cartridge_model_id: number;
+  slot_name: string | null;
+  color_role: string | null;
+  item_condition: string;
+  installed_at: string;
+  status: string;
+};
+
+export type PrinterRepair = {
+  id: number;
+  printer_id: number;
+  repair_status: string;
+  sent_at: string | null;
+  returned_at: string | null;
+  service_company: string | null;
+  reason: string | null;
+  notes: string | null;
+  result: string | null;
+};
+
 export type Organization = {
   id: number;
   name: string;
@@ -79,4 +102,3 @@ export type CartridgeTransaction = {
   comment: string | null;
   created_at: string;
 };
-

@@ -20,18 +20,38 @@ export function PageHeader({
 export function Message({
   loading,
   error,
+  success,
+  info,
 }: {
   loading?: boolean;
   error?: string | null;
+  success?: string | null;
+  info?: string | null;
 }) {
   const { t } = useI18n();
   if (loading) {
-    return <div className="message">{t.loading}</div>;
+    return <Alert type="info">{t.loading}</Alert>;
   }
   if (error) {
-    return <div className="message error">{t.error}: {error}</div>;
+    return <Alert type="error">{t.error}: {error}</Alert>;
+  }
+  if (success) {
+    return <Alert type="success">{success}</Alert>;
+  }
+  if (info) {
+    return <Alert type="info">{info}</Alert>;
   }
   return null;
+}
+
+export function Alert({
+  children,
+  type = "info",
+}: {
+  children: React.ReactNode;
+  type?: "success" | "error" | "info";
+}) {
+  return <div className={`message ${type}`}>{children}</div>;
 }
 
 export function EmptyRow({ colSpan }: { colSpan: number }) {
@@ -44,4 +64,3 @@ export function EmptyRow({ colSpan }: { colSpan: number }) {
     </tr>
   );
 }
-

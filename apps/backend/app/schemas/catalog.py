@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.models.enums import CartridgeType, ColorMode, PrinterStatus, PrintTechnology
 
@@ -164,6 +164,13 @@ class PrinterBase(BaseModel):
     decommissioned_at: datetime | None = None
     is_archived: bool = False
 
+    @field_validator("ip_address", mode="before")
+    @classmethod
+    def normalize_ip_address(cls, value: object) -> str | None:
+        if value is None or value == "":
+            return None
+        return str(value)
+
 
 class PrinterCreate(PrinterBase):
     pass
@@ -189,4 +196,3 @@ class PrinterRead(PrinterBase, ORMModel):
     id: int
     created_at: datetime
     updated_at: datetime
-

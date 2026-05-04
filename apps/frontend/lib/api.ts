@@ -5,6 +5,16 @@ const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"
 
 type JsonBody = Record<string, unknown>;
 
+export class ApiError extends Error {
+  status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
+
 async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...init,
@@ -32,7 +42,7 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
     } catch {
       // Keep the HTTP status message.
     }
-    throw new Error(message);
+    throw new ApiError(message, response.status);
   }
 
   if (response.status === 204) {
@@ -69,4 +79,3 @@ export function compactBody<T extends JsonBody>(body: T): JsonBody {
     Object.entries(body).filter(([, value]) => value !== "" && value !== null && value !== undefined),
   );
 }
-

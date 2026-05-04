@@ -236,6 +236,10 @@ tr:last-child td {
   margin-top: 22px;
 }
 
+.form-grid.three {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .section-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   align-items: start;
@@ -243,6 +247,17 @@ tr:last-child td {
 
 .panel {
   padding: 18px;
+}
+
+.panel.wide {
+  margin-top: 22px;
+}
+
+.inline-controls {
+  display: grid;
+  grid-template-columns: minmax(220px, 360px) auto;
+  align-items: end;
+  gap: 12px;
 }
 
 form {
@@ -256,6 +271,18 @@ label {
   color: #344054;
   font-size: 14px;
   font-weight: 700;
+}
+
+.checkbox {
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  color: var(--foreground);
+  font-weight: 400;
+}
+
+.checkbox input {
+  width: 16px;
+  min-height: 16px;
 }
 
 input,
@@ -320,10 +347,45 @@ textarea:focus {
   color: var(--muted);
 }
 
+.message.info {
+  background: #ffffff;
+  color: var(--muted);
+}
+
 .message.error {
   border-color: #f3b3ad;
   background: var(--danger-bg);
   color: var(--danger);
+}
+
+.message.success {
+  border-color: #abefc6;
+  background: #ecfdf3;
+  color: #027a48;
+}
+
+.row-warning td {
+  background: #fff8e6;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  border-radius: 999px;
+  padding: 3px 9px;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.badge.ok {
+  background: #ecfdf3;
+  color: #027a48;
+}
+
+.badge.warning {
+  background: #fffaeb;
+  color: #b54708;
 }
 
 @media (max-width: 980px) {
@@ -338,7 +400,12 @@ textarea:focus {
 
   .metric-grid,
   .form-grid,
+  .form-grid.three,
   .section-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .inline-controls {
     grid-template-columns: 1fr;
   }
 }
@@ -361,4 +428,3 @@ textarea:focus {
     font-size: 24px;
   }
 }
-
