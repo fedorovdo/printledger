@@ -18,6 +18,13 @@ from app.schemas.catalog import (
     PrinterRead,
     PrinterUpdate,
 )
+from app.schemas.inventory import (
+    CartridgeInventoryTransactionCreate,
+    CartridgeInventoryTransactionRead,
+    CartridgeStockSummaryRead,
+    PrinterCartridgeHistoryRead,
+    PrinterInstalledCartridgeRead,
+)
 
 __all__ = [
     "BranchCreate",
@@ -26,6 +33,9 @@ __all__ = [
     "CartridgeModelCreate",
     "CartridgeModelRead",
     "CartridgeModelUpdate",
+    "CartridgeInventoryTransactionCreate",
+    "CartridgeInventoryTransactionRead",
+    "CartridgeStockSummaryRead",
     "LocationCreate",
     "LocationRead",
     "LocationUpdate",
@@ -33,6 +43,8 @@ __all__ = [
     "OrganizationRead",
     "OrganizationUpdate",
     "PrinterCreate",
+    "PrinterCartridgeHistoryRead",
+    "PrinterInstalledCartridgeRead",
     "PrinterModelCreate",
     "PrinterModelRead",
     "PrinterModelUpdate",

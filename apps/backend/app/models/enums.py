@@ -38,3 +38,33 @@ class PrinterStatus(str, Enum):
     archived = "archived"
     written_off = "written_off"
 
+
+class CartridgeTransactionType(str, Enum):
+    stock_in_new = "stock_in_new"
+    stock_in_refilled = "stock_in_refilled"
+    correction_plus = "correction_plus"
+    correction_minus = "correction_minus"
+    install = "install"
+    remove = "remove"
+    send_to_refill = "send_to_refill"
+    receive_from_refill = "receive_from_refill"
+    write_off = "write_off"
+
+
+class CartridgeCondition(str, Enum):
+    new = "new"
+    refilled = "refilled"
+
+
+class CartridgeColorRole(str, Enum):
+    black = "black"
+    cyan = "cyan"
+    magenta = "magenta"
+    yellow = "yellow"
+    other = "other"
+
+
+class InstalledCartridgeStatus(str, Enum):
+    installed = "installed"
+    empty = "empty"
+    removed = "removed"

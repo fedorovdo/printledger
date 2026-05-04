@@ -100,6 +100,118 @@ Minimal CRUD endpoints are available for core directories:
 
 `DELETE` endpoints currently perform soft deletion: directories are deactivated with `is_active=false`, and printers are archived with `is_archived=true`.
 
+## Cartridge Inventory API
+
+The cartridge inventory MVP records stock movements in `cartridge_inventory_transactions`.
+Warehouse balances are calculated from transactions; installed cartridge count is calculated from `printer_installed_cartridges`.
+
+Available endpoints:
+
+- `POST /api/cartridge-transactions/stock-in`
+- `POST /api/cartridge-transactions/correction`
+- `POST /api/cartridge-transactions/install`
+- `POST /api/cartridge-transactions/remove`
+- `POST /api/cartridge-transactions/refill-return`
+- `GET /api/cartridge-transactions`
+- `GET /api/cartridge-stock`
+- `GET /api/printers/{printer_id}/installed-cartridges`
+- `GET /api/cartridge-models/{cartridge_model_id}/history`
+- `GET /api/printers/{printer_id}/cartridge-history`
+
+### Inventory Smoke Check
+
+Run these commands from PowerShell after `docker compose up -d` and `docker compose exec backend alembic upgrade head`.
+
+Create a cartridge model:
+
+```powershell
+$cartridgeBody = @{
+  vendor = "HP"
+  model_name = "CF259X"
+  purchase_sku = "CF259X"
+  cartridge_type = "toner"
+  min_stock_level = 2
+} | ConvertTo-Json
+$cartridge = Invoke-RestMethod -Method Post -Uri http://localhost:8000/api/cartridge-models -ContentType "application/json" -Body $cartridgeBody
+```
+
+Add 10 new cartridges to stock:
+
+```powershell
+$stockInBody = @{
+  cartridge_model_id = $cartridge.id
+  quantity = 10
+  item_condition = "new"
+  reason = "Initial stock"
+} | ConvertTo-Json
+Invoke-RestMethod -Method Post -Uri http://localhost:8000/api/cartridge-transactions/stock-in -ContentType "application/json" -Body $stockInBody
+```
+
+Check stock:
+
+```powershell
+Invoke-RestMethod http://localhost:8000/api/cartridge-stock
+```
+
+Create a printer model:
+
+```powershell
+$printerModelBody = @{
+  vendor = "HP"
+  name = "LaserJet Pro M404dn"
+  print_technology = "laser"
+  color_mode = "mono"
+  cartridge_slots_count = 1
+} | ConvertTo-Json
+$printerModel = Invoke-RestMethod -Method Post -Uri http://localhost:8000/api/printer-models -ContentType "application/json" -Body $printerModelBody
+```
+
+Create a printer:
+
+```powershell
+$printerBody = @{
+  printer_model_id = $printerModel.id
+  inventory_number = "PL-SMOKE-001"
+  status = "in_work"
+} | ConvertTo-Json
+$printer = Invoke-RestMethod -Method Post -Uri http://localhost:8000/api/printers -ContentType "application/json" -Body $printerBody
+```
+
+Install one cartridge:
+
+```powershell
+$installBody = @{
+  cartridge_model_id = $cartridge.id
+  printer_id = $printer.id
+  quantity = 1
+  item_condition = "new"
+  slot_name = "Black"
+  color_role = "black"
+  comment = "Smoke install"
+} | ConvertTo-Json
+Invoke-RestMethod -Method Post -Uri http://localhost:8000/api/cartridge-transactions/install -ContentType "application/json" -Body $installBody
+```
+
+Check installed cartridges:
+
+```powershell
+$installed = Invoke-RestMethod http://localhost:8000/api/printers/$($printer.id)/installed-cartridges
+$installed
+```
+
+Remove the cartridge:
+
+```powershell
+$removeBody = @{
+  installed_cartridge_id = $installed[0].id
+  removal_reason = "Smoke removal"
+  send_to_refill = $true
+  write_off = $false
+  comment = "Smoke remove"
+} | ConvertTo-Json
+Invoke-RestMethod -Method Post -Uri http://localhost:8000/api/cartridge-transactions/remove -ContentType "application/json" -Body $removeBody
+```
+
 ## Project Structure
 
 ```text

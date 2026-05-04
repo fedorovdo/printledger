@@ -1,15 +1,19 @@
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import Boolean, DateTime, Enum as SAEnum, ForeignKey, Integer, String, Text, func
+from sqlalchemy import Boolean, CheckConstraint, DateTime, Enum as SAEnum, ForeignKey, Integer, String, Text, func
 from sqlalchemy.dialects.postgresql import INET, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
 from app.models.enums import (
+    CartridgeColorRole,
+    CartridgeCondition,
+    CartridgeTransactionType,
     CartridgeType,
     ColorMode,
     ColorRole,
+    InstalledCartridgeStatus,
     PrinterStatus,
     PrintTechnology,
     UserRole,
@@ -195,3 +199,89 @@ class AuditLog(Base):
     )
 
     user: Mapped["User | None"] = relationship(back_populates="audit_events")
+
+
+class CartridgeInventoryTransaction(Base):
+    __tablename__ = "cartridge_inventory_transactions"
+    __table_args__ = (CheckConstraint("quantity > 0", name="ck_cartridge_transactions_quantity_positive"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    cartridge_model_id: Mapped[int] = mapped_column(ForeignKey("cartridge_models.id"), index=True)
+    transaction_type: Mapped[CartridgeTransactionType] = mapped_column(
+        enum_column(CartridgeTransactionType), index=True, nullable=False
+    )
+    quantity: Mapped[int] = mapped_column(Integer, nullable=False)
+    item_condition: Mapped[CartridgeCondition | None] = mapped_column(
+        enum_column(CartridgeCondition)
+    )
+    printer_id: Mapped[int | None] = mapped_column(ForeignKey("printers.id"), index=True)
+    location_id: Mapped[int | None] = mapped_column(ForeignKey("locations.id"), index=True)
+    slot_name: Mapped[str | None] = mapped_column(String(100))
+    color_role: Mapped[CartridgeColorRole | None] = mapped_column(enum_column(CartridgeColorRole))
+    reason: Mapped[str | None] = mapped_column(String(255))
+    comment: Mapped[str | None] = mapped_column(Text)
+    related_transaction_id: Mapped[int | None] = mapped_column(
+        ForeignKey("cartridge_inventory_transactions.id")
+    )
+    created_by_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), index=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), index=True, nullable=False
+    )
+
+    cartridge_model: Mapped["CartridgeModel"] = relationship()
+    printer: Mapped["Printer | None"] = relationship()
+    location: Mapped["Location | None"] = relationship()
+    related_transaction: Mapped["CartridgeInventoryTransaction | None"] = relationship(
+        remote_side=[id]
+    )
+    created_by_user: Mapped["User | None"] = relationship()
+
+
+class PrinterInstalledCartridge(Base, TimestampMixin):
+    __tablename__ = "printer_installed_cartridges"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    printer_id: Mapped[int] = mapped_column(ForeignKey("printers.id"), index=True)
+    cartridge_model_id: Mapped[int] = mapped_column(ForeignKey("cartridge_models.id"), index=True)
+    slot_name: Mapped[str | None] = mapped_column(String(100))
+    color_role: Mapped[CartridgeColorRole | None] = mapped_column(enum_column(CartridgeColorRole))
+    item_condition: Mapped[CartridgeCondition] = mapped_column(
+        enum_column(CartridgeCondition), nullable=False
+    )
+    installed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    installed_by_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), index=True)
+    status: Mapped[InstalledCartridgeStatus] = mapped_column(
+        enum_column(InstalledCartridgeStatus),
+        default=InstalledCartridgeStatus.installed,
+        server_default="installed",
+        nullable=False,
+    )
+    notes: Mapped[str | None] = mapped_column(Text)
+
+    printer: Mapped["Printer"] = relationship()
+    cartridge_model: Mapped["CartridgeModel"] = relationship()
+    installed_by_user: Mapped["User | None"] = relationship()
+
+
+class PrinterCartridgeHistory(Base, TimestampMixin):
+    __tablename__ = "printer_cartridge_history"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    printer_id: Mapped[int] = mapped_column(ForeignKey("printers.id"), index=True)
+    cartridge_model_id: Mapped[int] = mapped_column(ForeignKey("cartridge_models.id"), index=True)
+    slot_name: Mapped[str | None] = mapped_column(String(100))
+    color_role: Mapped[CartridgeColorRole | None] = mapped_column(enum_column(CartridgeColorRole))
+    item_condition: Mapped[CartridgeCondition] = mapped_column(
+        enum_column(CartridgeCondition), nullable=False
+    )
+    installed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    removed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    installed_by_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), index=True)
+    removed_by_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), index=True)
+    removal_reason: Mapped[str | None] = mapped_column(String(255))
+    notes: Mapped[str | None] = mapped_column(Text)
+
+    printer: Mapped["Printer"] = relationship()
+    cartridge_model: Mapped["CartridgeModel"] = relationship()
+    installed_by_user: Mapped["User | None"] = relationship(foreign_keys=[installed_by_user_id])
+    removed_by_user: Mapped["User | None"] = relationship(foreign_keys=[removed_by_user_id])
