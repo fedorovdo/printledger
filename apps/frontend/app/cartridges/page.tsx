@@ -1,10 +1,12 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import Link from "next/link";
 
 import { EmptyRow, Message, PageHeader } from "@/components/Ui";
 import { ApiError, compactBody, fetchJson, postJson } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
+import { dash } from "@/lib/labels";
 import type { CartridgeModel, CartridgeStock, Printer } from "@/lib/types";
 
 const initialModel = {
@@ -152,25 +154,27 @@ export default function CartridgesPage() {
               <th>{t.total}</th>
               <th>{t.minStock}</th>
               <th>{t.stockStatus}</th>
+              <th>{t.open}</th>
             </tr>
           </thead>
           <tbody>
             {stock.length === 0 ? (
-              <EmptyRow colSpan={8} />
+              <EmptyRow colSpan={9} />
             ) : (
               stock.map((item) => {
                 const warehouseTotal = item.stock_new + item.stock_refilled;
                 const isLow = warehouseTotal < item.min_stock_level;
                 return (
                   <tr className={isLow ? "row-warning" : ""} key={item.cartridge_model_id}>
-                    <td>{item.model_name}</td>
-                    <td>{item.purchase_sku ?? "—"}</td>
+                    <td><Link className="text-link" href={`/cartridges/${item.cartridge_model_id}`}>{item.model_name}</Link></td>
+                    <td>{dash(item.purchase_sku)}</td>
                     <td>{item.stock_new}</td>
                     <td>{item.stock_refilled}</td>
                     <td>{item.installed_total}</td>
                     <td>{item.total}</td>
                     <td>{item.min_stock_level}</td>
                     <td><span className={isLow ? "badge warning" : "badge ok"}>{isLow ? t.lowStock : t.ok}</span></td>
+                    <td><Link className="button tiny secondary" href={`/cartridges/${item.cartridge_model_id}`}>{t.open}</Link></td>
                   </tr>
                 );
               })
@@ -215,4 +219,3 @@ export default function CartridgesPage() {
     </section>
   );
 }
-

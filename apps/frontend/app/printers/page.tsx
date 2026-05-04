@@ -1,10 +1,12 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 
 import { EmptyRow, Message, PageHeader } from "@/components/Ui";
 import { compactBody, fetchJson, patchJson, postJson } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
+import { dash } from "@/lib/labels";
 import type {
   CartridgeModel,
   InstalledCartridge,
@@ -140,21 +142,23 @@ export default function PrintersPage() {
               <th>{t.location}</th>
               <th>{t.status}</th>
               <th>{t.archived}</th>
+              <th>{t.open}</th>
             </tr>
           </thead>
           <tbody>
             {printers.length === 0 ? (
-              <EmptyRow colSpan={7} />
+              <EmptyRow colSpan={8} />
             ) : (
               printers.map((printer) => (
                 <tr key={printer.id}>
-                  <td>{printerModelName.get(printer.printer_model_id) ?? "—"}</td>
-                  <td>{printer.inventory_number ?? "—"}</td>
-                  <td>{printer.serial_number ?? "—"}</td>
-                  <td>{printer.ip_address ?? "—"}</td>
-                  <td>{printer.current_location_id ? locationName.get(printer.current_location_id) ?? "—" : "—"}</td>
+                  <td>{dash(printerModelName.get(printer.printer_model_id))}</td>
+                  <td><Link className="text-link" href={`/printers/${printer.id}`}>{dash(printer.inventory_number)}</Link></td>
+                  <td>{dash(printer.serial_number)}</td>
+                  <td>{dash(printer.ip_address)}</td>
+                  <td>{printer.current_location_id ? dash(locationName.get(printer.current_location_id)) : dash(null)}</td>
                   <td>{printer.status}</td>
                   <td>{printer.is_archived ? "yes" : "no"}</td>
+                  <td><Link className="button tiny secondary" href={`/printers/${printer.id}`}>{t.open}</Link></td>
                 </tr>
               ))
             )}
@@ -209,9 +213,9 @@ export default function PrintersPage() {
             <tbody>
               {installed.length === 0 ? <EmptyRow colSpan={6} /> : installed.map((item) => (
                 <tr key={item.id}>
-                  <td>{cartridgeModelName.get(item.cartridge_model_id) ?? "—"}</td>
-                  <td>{item.slot_name ?? "—"}</td>
-                  <td>{item.color_role ?? "—"}</td>
+                  <td>{dash(cartridgeModelName.get(item.cartridge_model_id))}</td>
+                  <td>{dash(item.slot_name)}</td>
+                  <td>{dash(item.color_role)}</td>
                   <td>{item.item_condition}</td>
                   <td>{new Date(item.installed_at).toLocaleString()}</td>
                   <td>{item.status}</td>
@@ -229,7 +233,7 @@ export default function PrintersPage() {
           await Promise.all([refreshInstalled(), fetchJson("/api/cartridge-transactions")]);
         }, t.cartridgeRemoved)}>
           <h2>{t.removeCartridge}</h2>
-          <label>{t.installedCartridge}<select required value={removeForm.installed_cartridge_id} onChange={(e) => setRemoveForm({ ...removeForm, installed_cartridge_id: e.target.value })}><option value=""></option>{installed.map((item) => <option key={item.id} value={item.id}>{cartridgeModelName.get(item.cartridge_model_id) ?? `#${item.id}`} / {item.slot_name ?? "—"}</option>)}</select></label>
+          <label>{t.installedCartridge}<select required value={removeForm.installed_cartridge_id} onChange={(e) => setRemoveForm({ ...removeForm, installed_cartridge_id: e.target.value })}><option value=""></option>{installed.map((item) => <option key={item.id} value={item.id}>{cartridgeModelName.get(item.cartridge_model_id) ?? `#${item.id}`} / {dash(item.slot_name)}</option>)}</select></label>
           <label>{t.removalReason}<input required value={removeForm.removal_reason} onChange={(e) => setRemoveForm({ ...removeForm, removal_reason: e.target.value })} /></label>
           <label className="checkbox"><input checked={removeForm.send_to_refill} type="checkbox" onChange={(e) => setRemoveForm({ ...removeForm, send_to_refill: e.target.checked })} />{t.sendToRefill}</label>
           <label className="checkbox"><input checked={removeForm.write_off} type="checkbox" onChange={(e) => setRemoveForm({ ...removeForm, write_off: e.target.checked })} />{t.writeOff}</label>
@@ -294,7 +298,7 @@ export default function PrintersPage() {
               <thead><tr><th>ID</th><th>{t.status}</th><th>{t.serviceCompany}</th><th>{t.result}</th></tr></thead>
               <tbody>
                 {repairs.length === 0 ? <EmptyRow colSpan={4} /> : repairs.map((repair) => (
-                  <tr key={repair.id}><td>{repair.id}</td><td>{repair.repair_status}</td><td>{repair.service_company ?? "—"}</td><td>{repair.result ?? "—"}</td></tr>
+                  <tr key={repair.id}><td>{repair.id}</td><td>{repair.repair_status}</td><td>{dash(repair.service_company)}</td><td>{dash(repair.result)}</td></tr>
                 ))}
               </tbody>
             </table>
@@ -304,4 +308,3 @@ export default function PrintersPage() {
     </section>
   );
 }
-

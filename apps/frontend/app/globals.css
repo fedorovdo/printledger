@@ -240,6 +240,10 @@ tr:last-child td {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.form-grid.four {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
 .section-grid {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   align-items: start;
@@ -251,6 +255,54 @@ tr:last-child td {
 
 .panel.wide {
   margin-top: 22px;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 0.85fr);
+  gap: 18px;
+  margin-bottom: 22px;
+}
+
+.details {
+  display: grid;
+  grid-template-columns: minmax(130px, 0.42fr) 1fr;
+  gap: 10px 14px;
+  margin: 0;
+}
+
+.details dt {
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.details dd {
+  margin: 0;
+  font-size: 14px;
+}
+
+.compact-metrics {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.metric-card.small {
+  min-height: 82px;
+  padding: 14px;
+}
+
+.metric-card.small strong {
+  margin-top: 8px;
+  font-size: 22px;
+}
+
+.text-link {
+  color: var(--accent);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.text-link:hover {
+  text-decoration: underline;
 }
 
 .inline-controls {
@@ -333,6 +385,15 @@ textarea:focus {
   background: #f8fafc;
 }
 
+.button.tiny {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  padding: 5px 10px;
+  font-size: 13px;
+  text-decoration: none;
+}
+
 .button:disabled {
   cursor: not-allowed;
   opacity: 0.6;
@@ -401,8 +462,14 @@ textarea:focus {
   .metric-grid,
   .form-grid,
   .form-grid.three,
+  .form-grid.four,
+  .detail-grid,
   .section-grid {
     grid-template-columns: 1fr;
+  }
+
+  .compact-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .inline-controls {

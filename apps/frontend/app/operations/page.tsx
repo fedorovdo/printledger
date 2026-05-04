@@ -5,32 +5,8 @@ import { useEffect, useMemo, useState } from "react";
 import { EmptyRow, Message, PageHeader } from "@/components/Ui";
 import { fetchJson } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
+import { dash, labelTransaction } from "@/lib/labels";
 import type { CartridgeModel, CartridgeTransaction, Printer } from "@/lib/types";
-
-const operationLabels = {
-  ru: {
-    stock_in_new: "Приход нового",
-    stock_in_refilled: "Приход заправленного",
-    correction_plus: "Корректировка +",
-    correction_minus: "Корректировка -",
-    install: "Установка",
-    remove: "Снятие",
-    send_to_refill: "На заправку",
-    receive_from_refill: "Возврат из заправки",
-    write_off: "Списание",
-  },
-  en: {
-    stock_in_new: "Stock-in new",
-    stock_in_refilled: "Stock-in refilled",
-    correction_plus: "Correction +",
-    correction_minus: "Correction -",
-    install: "Install",
-    remove: "Remove",
-    send_to_refill: "Send to refill",
-    receive_from_refill: "Return from refill",
-    write_off: "Write off",
-  },
-};
 
 export default function OperationsPage() {
   const { locale, t } = useI18n();
@@ -72,10 +48,6 @@ export default function OperationsPage() {
     void loadData();
   }, []);
 
-  function labelTransaction(type: string) {
-    return operationLabels[locale][type as keyof typeof operationLabels.ru] ?? type;
-  }
-
   return (
     <section>
       <PageHeader
@@ -103,12 +75,12 @@ export default function OperationsPage() {
               operations.map((operation) => (
                 <tr key={operation.id}>
                   <td>{new Date(operation.created_at).toLocaleString()}</td>
-                  <td>{cartridgeModelName.get(operation.cartridge_model_id) ?? "—"}</td>
-                  <td>{labelTransaction(operation.transaction_type)}</td>
+                  <td>{dash(cartridgeModelName.get(operation.cartridge_model_id))}</td>
+                  <td>{labelTransaction(operation.transaction_type, locale)}</td>
                   <td>{operation.quantity}</td>
-                  <td>{operation.item_condition ?? "—"}</td>
-                  <td>{operation.printer_id ? printerName.get(operation.printer_id) ?? "—" : "—"}</td>
-                  <td>{operation.comment ?? "—"}</td>
+                  <td>{dash(operation.item_condition)}</td>
+                  <td>{operation.printer_id ? dash(printerName.get(operation.printer_id)) : "—"}</td>
+                  <td>{dash(operation.comment)}</td>
                 </tr>
               ))
             )}
@@ -118,4 +90,3 @@ export default function OperationsPage() {
     </section>
   );
 }
-

@@ -38,6 +38,7 @@ export type Printer = {
   mac_address: string | null;
   current_location_id: number | null;
   status: string;
+  notes: string | null;
   is_archived: boolean;
 };
 
@@ -99,6 +100,38 @@ export type CartridgeTransaction = {
   quantity: number;
   item_condition: string | null;
   printer_id: number | null;
+  reason: string | null;
   comment: string | null;
   created_at: string;
+};
+
+export type PrinterCartridgeHistory = {
+  id: number;
+  printer_id: number;
+  cartridge_model_id: number;
+  slot_name: string | null;
+  color_role: string | null;
+  item_condition: string;
+  installed_at: string;
+  removed_at: string | null;
+  removal_reason: string | null;
+  notes: string | null;
+};
+
+export type PrinterLocationHistory = {
+  id: number;
+  printer_id: number;
+  from_location_id: number | null;
+  to_location_id: number | null;
+  moved_at: string;
+  reason: string | null;
+  notes: string | null;
+};
+
+export type PrinterArchiveHistory = {
+  id: number;
+  printer_id: number;
+  archive_reason: string;
+  archived_at: string;
+  comment: string | null;
 };

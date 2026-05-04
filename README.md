@@ -138,6 +138,43 @@ Archive or write off a printer:
 3. Select printer, archive reason, and comment.
 4. Submit the form. The dashboard archived count updates on the next dashboard load.
 
+### Cartridge Card
+
+Open a cartridge card from `http://localhost:3000/cartridges` by clicking the cartridge model name or the `Open` button.
+Direct URL format:
+
+```text
+http://localhost:3000/cartridges/{cartridge_model_id}
+```
+
+The card shows model details, stock summary, low-stock status, and operation history from `GET /api/cartridge-models/{cartridge_model_id}/history`.
+
+Available card actions:
+
+- Receive cartridges into stock with `POST /api/cartridge-transactions/stock-in`.
+- Install one cartridge into a selected printer with `POST /api/cartridge-transactions/install`.
+- Apply plus/minus correction with `POST /api/cartridge-transactions/correction`.
+- Register refill return with `POST /api/cartridge-transactions/refill-return`.
+
+### Printer Card
+
+Open a printer card from `http://localhost:3000/printers` by clicking the inventory number or the `Open` button.
+Direct URL format:
+
+```text
+http://localhost:3000/printers/{printer_id}
+```
+
+The card shows printer details with resolved printer model and location names, plus installed cartridges, cartridge history, location history, repair history, and archive history.
+
+Available card actions:
+
+- Install a cartridge into the current printer.
+- Remove an installed cartridge and optionally send it to refill or write it off.
+- Move the printer to another location.
+- Send the printer to repair and return it from repair.
+- Archive or write off the printer.
+
 ## API v1 Foundation
 
 Minimal CRUD endpoints are available for core directories:
