@@ -68,3 +68,18 @@ class InstalledCartridgeStatus(str, Enum):
     installed = "installed"
     empty = "empty"
     removed = "removed"
+
+
+class PrinterRepairStatus(str, Enum):
+    sent = "sent"
+    in_progress = "in_progress"
+    returned = "returned"
+    cancelled = "cancelled"
+
+
+class PrinterArchiveReason(str, Enum):
+    archived = "archived"
+    written_off = "written_off"
+    lost = "lost"
+    duplicate = "duplicate"
+    error = "error"

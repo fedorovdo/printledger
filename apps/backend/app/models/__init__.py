@@ -7,10 +7,13 @@ from app.models.entities import (
     Location,
     Organization,
     Printer,
+    PrinterArchiveHistory,
     PrinterCartridgeHistory,
     PrinterInstalledCartridge,
+    PrinterLocationHistory,
     PrinterModel,
     PrinterModelCompatibleCartridge,
+    PrinterRepair,
     User,
 )
 
@@ -23,9 +26,12 @@ __all__ = [
     "Location",
     "Organization",
     "Printer",
+    "PrinterArchiveHistory",
     "PrinterCartridgeHistory",
     "PrinterInstalledCartridge",
+    "PrinterLocationHistory",
     "PrinterModel",
     "PrinterModelCompatibleCartridge",
+    "PrinterRepair",
     "User",
 ]

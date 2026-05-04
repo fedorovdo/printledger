@@ -212,6 +212,113 @@ $removeBody = @{
 Invoke-RestMethod -Method Post -Uri http://localhost:8000/api/cartridge-transactions/remove -ContentType "application/json" -Body $removeBody
 ```
 
+## Printer Lifecycle API
+
+Printer lifecycle operations keep append-only histories for moves, repairs, and archive/write-off actions.
+
+Available endpoints:
+
+- `POST /api/printers/{printer_id}/move`
+- `GET /api/printers/{printer_id}/location-history`
+- `POST /api/printers/{printer_id}/repairs`
+- `PATCH /api/printer-repairs/{repair_id}`
+- `GET /api/printers/{printer_id}/repairs`
+- `POST /api/printers/{printer_id}/archive`
+- `GET /api/printers/archived`
+- `GET /api/printers/{printer_id}/archive-history`
+
+### Printer Lifecycle Smoke Check
+
+Run after migrations are applied.
+
+Create an organization and location:
+
+```powershell
+$suffix = Get-Date -Format "yyyyMMddHHmmss"
+$orgBody = @{
+  name = "Smoke Organization $suffix"
+  short_name = "SMOKE-$suffix"
+} | ConvertTo-Json
+$org = Invoke-RestMethod -Method Post -Uri http://localhost:8000/api/organizations -ContentType "application/json" -Body $orgBody
+
+$locationBody = @{
+  organization_id = $org.id
+  display_name = "Smoke Room $suffix"
+  department = "IT"
+  room = "101"
+} | ConvertTo-Json
+$location = Invoke-RestMethod -Method Post -Uri http://localhost:8000/api/locations -ContentType "application/json" -Body $locationBody
+```
+
+Create a printer model and printer:
+
+```powershell
+$printerModelBody = @{
+  vendor = "HP"
+  name = "Lifecycle Smoke Printer $suffix"
+  print_technology = "laser"
+  color_mode = "mono"
+  cartridge_slots_count = 1
+} | ConvertTo-Json
+$printerModel = Invoke-RestMethod -Method Post -Uri http://localhost:8000/api/printer-models -ContentType "application/json" -Body $printerModelBody
+
+$printerBody = @{
+  printer_model_id = $printerModel.id
+  inventory_number = "PL-LIFE-$suffix"
+  current_location_id = $location.id
+  status = "in_work"
+} | ConvertTo-Json
+$printer = Invoke-RestMethod -Method Post -Uri http://localhost:8000/api/printers -ContentType "application/json" -Body $printerBody
+```
+
+Create another location and move the printer:
+
+```powershell
+$targetLocationBody = @{
+  organization_id = $org.id
+  display_name = "Smoke Room Target $suffix"
+  department = "Finance"
+  room = "202"
+} | ConvertTo-Json
+$targetLocation = Invoke-RestMethod -Method Post -Uri http://localhost:8000/api/locations -ContentType "application/json" -Body $targetLocationBody
+
+$moveBody = @{
+  to_location_id = $targetLocation.id
+  reason = "Smoke move"
+  notes = "Lifecycle smoke test"
+} | ConvertTo-Json
+Invoke-RestMethod -Method Post -Uri http://localhost:8000/api/printers/$($printer.id)/move -ContentType "application/json" -Body $moveBody
+```
+
+Send to repair and return from repair:
+
+```powershell
+$repairBody = @{
+  service_company = "Smoke Service"
+  reason = "Test repair"
+  notes = "Sent from smoke test"
+} | ConvertTo-Json
+$repair = Invoke-RestMethod -Method Post -Uri http://localhost:8000/api/printers/$($printer.id)/repairs -ContentType "application/json" -Body $repairBody
+
+$repairReturnBody = @{
+  repair_status = "returned"
+  result = "Returned successfully"
+} | ConvertTo-Json
+Invoke-RestMethod -Method Patch -Uri http://localhost:8000/api/printer-repairs/$($repair.id) -ContentType "application/json" -Body $repairReturnBody
+```
+
+Archive the printer and list archived printers:
+
+```powershell
+$archiveBody = @{
+  archive_reason = "archived"
+  comment = "Smoke archive"
+} | ConvertTo-Json
+Invoke-RestMethod -Method Post -Uri http://localhost:8000/api/printers/$($printer.id)/archive -ContentType "application/json" -Body $archiveBody
+
+Invoke-RestMethod http://localhost:8000/api/printers/archived
+```
+
 ## Project Structure
 
 ```text

@@ -14,6 +14,8 @@ from app.models.enums import (
     ColorMode,
     ColorRole,
     InstalledCartridgeStatus,
+    PrinterArchiveReason,
+    PrinterRepairStatus,
     PrinterStatus,
     PrintTechnology,
     UserRole,
@@ -285,3 +287,63 @@ class PrinterCartridgeHistory(Base, TimestampMixin):
     cartridge_model: Mapped["CartridgeModel"] = relationship()
     installed_by_user: Mapped["User | None"] = relationship(foreign_keys=[installed_by_user_id])
     removed_by_user: Mapped["User | None"] = relationship(foreign_keys=[removed_by_user_id])
+
+
+class PrinterLocationHistory(Base):
+    __tablename__ = "printer_location_history"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    printer_id: Mapped[int] = mapped_column(ForeignKey("printers.id"), index=True)
+    from_location_id: Mapped[int | None] = mapped_column(ForeignKey("locations.id"))
+    to_location_id: Mapped[int | None] = mapped_column(ForeignKey("locations.id"))
+    moved_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True, nullable=False)
+    reason: Mapped[str | None] = mapped_column(String(255))
+    notes: Mapped[str | None] = mapped_column(Text)
+    created_by_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), index=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    printer: Mapped["Printer"] = relationship()
+    from_location: Mapped["Location | None"] = relationship(foreign_keys=[from_location_id])
+    to_location: Mapped["Location | None"] = relationship(foreign_keys=[to_location_id])
+    created_by_user: Mapped["User | None"] = relationship()
+
+
+class PrinterRepair(Base, TimestampMixin):
+    __tablename__ = "printer_repairs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    printer_id: Mapped[int] = mapped_column(ForeignKey("printers.id"), index=True)
+    repair_status: Mapped[PrinterRepairStatus] = mapped_column(
+        enum_column(PrinterRepairStatus), nullable=False
+    )
+    sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
+    returned_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
+    service_company: Mapped[str | None] = mapped_column(String(255))
+    reason: Mapped[str | None] = mapped_column(String(255))
+    notes: Mapped[str | None] = mapped_column(Text)
+    result: Mapped[str | None] = mapped_column(Text)
+    created_by_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), index=True)
+
+    printer: Mapped["Printer"] = relationship()
+    created_by_user: Mapped["User | None"] = relationship()
+
+
+class PrinterArchiveHistory(Base):
+    __tablename__ = "printer_archive_history"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    printer_id: Mapped[int] = mapped_column(ForeignKey("printers.id"), index=True)
+    archive_reason: Mapped[PrinterArchiveReason] = mapped_column(
+        enum_column(PrinterArchiveReason), nullable=False
+    )
+    archived_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), index=True, nullable=False)
+    comment: Mapped[str | None] = mapped_column(Text)
+    created_by_user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), index=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    printer: Mapped["Printer"] = relationship()
+    created_by_user: Mapped["User | None"] = relationship()

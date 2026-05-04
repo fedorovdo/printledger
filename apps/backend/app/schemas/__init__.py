@@ -25,6 +25,15 @@ from app.schemas.inventory import (
     PrinterCartridgeHistoryRead,
     PrinterInstalledCartridgeRead,
 )
+from app.schemas.printer_lifecycle import (
+    PrinterArchiveCreate,
+    PrinterArchiveHistoryRead,
+    PrinterLocationHistoryRead,
+    PrinterMoveCreate,
+    PrinterRepairCreate,
+    PrinterRepairRead,
+    PrinterRepairUpdate,
+)
 
 __all__ = [
     "BranchCreate",
@@ -43,11 +52,18 @@ __all__ = [
     "OrganizationRead",
     "OrganizationUpdate",
     "PrinterCreate",
+    "PrinterArchiveCreate",
+    "PrinterArchiveHistoryRead",
     "PrinterCartridgeHistoryRead",
     "PrinterInstalledCartridgeRead",
+    "PrinterLocationHistoryRead",
     "PrinterModelCreate",
     "PrinterModelRead",
     "PrinterModelUpdate",
+    "PrinterMoveCreate",
+    "PrinterRepairCreate",
+    "PrinterRepairRead",
+    "PrinterRepairUpdate",
     "PrinterRead",
     "PrinterUpdate",
 ]
