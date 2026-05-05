@@ -70,7 +70,7 @@ Open the app at `http://localhost:3000`.
 Pages:
 
 - `http://localhost:3000/` - dashboard with backend, database, cartridge model, printer, and archived printer status cards.
-- `http://localhost:3000/cartridges` - cartridge stock table, cartridge model creation, and stock-in form.
+- `http://localhost:3000/cartridges` - compact cartridge stock list with collapsed quick forms for cartridge model creation and stock-in.
 - `http://localhost:3000/printers` - printer list with Active/In repair/Archive/All filters and collapsed quick-add forms for printer models and printers.
 - `http://localhost:3000/locations` - simple create/list sections for organizations, branches, and locations.
 - `http://localhost:3000/operations` - cartridge inventory transaction list.
@@ -90,25 +90,27 @@ Invoke-WebRequest -UseBasicParsing http://localhost:3000/operations
 
 ### Frontend Workflows
 
+The `/cartridges` page is now a compact list plus quick stock-in. Actions for a specific cartridge model, including install, correction, and refill return, live on `/cartridges/{cartridge_model_id}`.
+
 Add a cartridge model:
 
 1. Open `http://localhost:3000/cartridges`.
-2. Use `Добавить модель картриджа`.
+2. Click the `+` cartridge model button to expand the form.
 3. Fill vendor, model, SKU, cartridge type, minimum stock, and notes.
-4. Submit the form and check that the model appears in the stock table.
+4. Submit the form. The form collapses and the model appears in the stock table.
 
 Receive cartridges into stock:
 
 1. Open `http://localhost:3000/cartridges`.
-2. Use `Приход`.
+2. Click the `+` stock-in button to expand the form.
 3. Select cartridge model, quantity, and condition `new` or `refilled`.
-4. Submit the form and check updated stock columns.
+4. Submit the form. The form collapses and the stock columns update.
 
 Install a cartridge:
 
 1. Open `http://localhost:3000/cartridges`.
-2. Use `Установить картридж`.
-3. Select cartridge model, printer, condition, slot, and color role.
+2. Open the cartridge card from the model link or the `Open` button.
+3. Use the install form on the cartridge card, or open a printer card and install from there.
 4. Submit the form. If the slot is already occupied, the UI shows a clear conflict message.
 
 Remove a cartridge:

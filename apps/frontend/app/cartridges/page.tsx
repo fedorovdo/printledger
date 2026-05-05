@@ -1,13 +1,13 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 
 import { EmptyRow, Message, PageHeader } from "@/components/Ui";
-import { ApiError, compactBody, fetchJson, postJson } from "@/lib/api";
+import { compactBody, fetchJson, postJson } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
-import { dash, formatPrinterLabel } from "@/lib/labels";
-import type { CartridgeModel, CartridgeStock, Location, Printer, PrinterModel } from "@/lib/types";
+import { dash } from "@/lib/labels";
+import type { CartridgeModel, CartridgeStock } from "@/lib/types";
 
 const initialModel = {
   vendor: "",
@@ -26,55 +26,29 @@ const initialStockIn = {
   comment: "",
 };
 
-const initialInstall = {
-  cartridge_model_id: "",
-  printer_id: "",
-  item_condition: "new",
-  slot_name: "Black",
-  color_role: "black",
-  comment: "",
-};
-
 export default function CartridgesPage() {
   const { t } = useI18n();
   const [stock, setStock] = useState<CartridgeStock[]>([]);
   const [models, setModels] = useState<CartridgeModel[]>([]);
-  const [printers, setPrinters] = useState<Printer[]>([]);
-  const [printerModels, setPrinterModels] = useState<PrinterModel[]>([]);
-  const [locations, setLocations] = useState<Location[]>([]);
   const [modelForm, setModelForm] = useState(initialModel);
   const [stockInForm, setStockInForm] = useState(initialStockIn);
-  const [installForm, setInstallForm] = useState(initialInstall);
+  const [showModelForm, setShowModelForm] = useState(false);
+  const [showStockInForm, setShowStockInForm] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  const printerModelMap = useMemo(
-    () => new Map(printerModels.map((model) => [model.id, model])),
-    [printerModels],
-  );
-  const locationMap = useMemo(
-    () => new Map(locations.map((location) => [location.id, location])),
-    [locations],
-  );
-
   async function loadData() {
     setLoading(true);
     setError(null);
     try {
-      const [stockData, modelData, printerData, printerModelData, locationData] = await Promise.all([
+      const [stockData, modelData] = await Promise.all([
         fetchJson<CartridgeStock[]>("/api/cartridge-stock"),
         fetchJson<CartridgeModel[]>("/api/cartridge-models"),
-        fetchJson<Printer[]>("/api/printers"),
-        fetchJson<PrinterModel[]>("/api/printer-models"),
-        fetchJson<Location[]>("/api/locations"),
       ]);
       setStock(stockData);
       setModels(modelData);
-      setPrinters(printerData);
-      setPrinterModels(printerModelData);
-      setLocations(locationData);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
     } finally {
@@ -97,6 +71,7 @@ export default function CartridgesPage() {
         min_stock_level: Number(modelForm.min_stock_level),
       }));
       setModelForm(initialModel);
+      setShowModelForm(false);
       setSuccess(t.created);
       await loadData();
     } catch (err) {
@@ -118,6 +93,7 @@ export default function CartridgesPage() {
         quantity: Number(stockInForm.quantity),
       }));
       setStockInForm(initialStockIn);
+      setShowStockInForm(false);
       setSuccess(t.operationSaved);
       await loadData();
     } catch (err) {
@@ -127,35 +103,21 @@ export default function CartridgesPage() {
     }
   }
 
-  async function installCartridge(event: FormEvent) {
-    event.preventDefault();
-    setSaving(true);
-    setError(null);
-    setSuccess(null);
-    try {
-      await postJson("/api/cartridge-transactions/install", compactBody({
-        ...installForm,
-        cartridge_model_id: Number(installForm.cartridge_model_id),
-        printer_id: Number(installForm.printer_id),
-        quantity: 1,
-      }));
-      await Promise.all([loadData(), fetchJson("/api/cartridge-transactions")]);
-      setInstallForm(initialInstall);
-      setSuccess(t.cartridgeInstalled);
-    } catch (err) {
-      if (err instanceof ApiError && err.status === 409) {
-        setError(t.slotConflict);
-      } else {
-        setError(err instanceof Error ? err.message : "Unknown error");
-      }
-    } finally {
-      setSaving(false);
-    }
-  }
-
   return (
     <section>
-      <PageHeader title={t.cartridges} />
+      <PageHeader
+        action={(
+          <div className="page-actions">
+            <button className="button secondary" onClick={() => setShowModelForm((value) => !value)} type="button">
+              {showModelForm ? `- ${t.cartridgeModel}` : `+ ${t.cartridgeModel}`}
+            </button>
+            <button className="button secondary" onClick={() => setShowStockInForm((value) => !value)} type="button">
+              {showStockInForm ? `- ${t.stockIn}` : `+ ${t.stockIn}`}
+            </button>
+          </div>
+        )}
+        title={t.cartridges}
+      />
       <Message loading={loading} error={error} success={success} />
       <div className="table-wrap">
         <table>
@@ -198,39 +160,34 @@ export default function CartridgesPage() {
         </table>
       </div>
 
-      <div className="form-grid three">
-        <form className="panel" onSubmit={createModel}>
-          <h2>{t.addCartridgeModel}</h2>
-          <label>{t.vendor}<input value={modelForm.vendor} onChange={(e) => setModelForm({ ...modelForm, vendor: e.target.value })} /></label>
-          <label>{t.modelName}<input required value={modelForm.model_name} onChange={(e) => setModelForm({ ...modelForm, model_name: e.target.value })} /></label>
-          <label>{t.sku}<input value={modelForm.purchase_sku} onChange={(e) => setModelForm({ ...modelForm, purchase_sku: e.target.value })} /></label>
-          <label>{t.cartridgeType}<select value={modelForm.cartridge_type} onChange={(e) => setModelForm({ ...modelForm, cartridge_type: e.target.value })}><option value="toner">toner</option><option value="ink">ink</option><option value="other">other</option></select></label>
-          <label>{t.minStockLevel}<input min="0" type="number" value={modelForm.min_stock_level} onChange={(e) => setModelForm({ ...modelForm, min_stock_level: e.target.value })} /></label>
-          <label>{t.notes}<textarea value={modelForm.notes} onChange={(e) => setModelForm({ ...modelForm, notes: e.target.value })} /></label>
-          <button className="button" disabled={saving} type="submit">{t.save}</button>
-        </form>
+      {(showModelForm || showStockInForm) && (
+        <div className="form-grid">
+          {showModelForm && (
+            <form className="panel" onSubmit={createModel}>
+              <h2>{t.addCartridgeModel}</h2>
+              <label>{t.vendor}<input value={modelForm.vendor} onChange={(e) => setModelForm({ ...modelForm, vendor: e.target.value })} /></label>
+              <label>{t.modelName}<input required value={modelForm.model_name} onChange={(e) => setModelForm({ ...modelForm, model_name: e.target.value })} /></label>
+              <label>{t.sku}<input value={modelForm.purchase_sku} onChange={(e) => setModelForm({ ...modelForm, purchase_sku: e.target.value })} /></label>
+              <label>{t.cartridgeType}<select value={modelForm.cartridge_type} onChange={(e) => setModelForm({ ...modelForm, cartridge_type: e.target.value })}><option value="toner">toner</option><option value="ink">ink</option><option value="other">other</option></select></label>
+              <label>{t.minStockLevel}<input min="0" type="number" value={modelForm.min_stock_level} onChange={(e) => setModelForm({ ...modelForm, min_stock_level: e.target.value })} /></label>
+              <label>{t.notes}<textarea value={modelForm.notes} onChange={(e) => setModelForm({ ...modelForm, notes: e.target.value })} /></label>
+              <button className="button" disabled={saving} type="submit">{t.save}</button>
+            </form>
+          )}
 
-        <form className="panel" onSubmit={stockIn}>
-          <h2>{t.stockIn}</h2>
-          <label>{t.cartridgeModel}<select required value={stockInForm.cartridge_model_id} onChange={(e) => setStockInForm({ ...stockInForm, cartridge_model_id: e.target.value })}><option value=""></option>{models.map((model) => <option key={model.id} value={model.id}>{model.model_name}</option>)}</select></label>
-          <label>{t.quantity}<input min="1" required type="number" value={stockInForm.quantity} onChange={(e) => setStockInForm({ ...stockInForm, quantity: e.target.value })} /></label>
-          <label>{t.condition}<select value={stockInForm.item_condition} onChange={(e) => setStockInForm({ ...stockInForm, item_condition: e.target.value })}><option value="new">new</option><option value="refilled">refilled</option></select></label>
-          <label>{t.reason}<input value={stockInForm.reason} onChange={(e) => setStockInForm({ ...stockInForm, reason: e.target.value })} /></label>
-          <label>{t.comment}<textarea value={stockInForm.comment} onChange={(e) => setStockInForm({ ...stockInForm, comment: e.target.value })} /></label>
-          <button className="button" disabled={saving} type="submit">{t.save}</button>
-        </form>
-
-        <form className="panel" onSubmit={installCartridge}>
-          <h2>{t.installCartridge}</h2>
-          <label>{t.cartridgeModel}<select required value={installForm.cartridge_model_id} onChange={(e) => setInstallForm({ ...installForm, cartridge_model_id: e.target.value })}><option value=""></option>{models.map((model) => <option key={model.id} value={model.id}>{model.model_name}</option>)}</select></label>
-          <label>{t.printers}<select required value={installForm.printer_id} onChange={(e) => setInstallForm({ ...installForm, printer_id: e.target.value })}><option value=""></option>{printers.filter((printer) => !printer.is_archived).map((printer) => <option key={printer.id} value={printer.id}>{formatPrinterLabel(printer, printerModelMap, locationMap)}</option>)}</select></label>
-          <label>{t.condition}<select value={installForm.item_condition} onChange={(e) => setInstallForm({ ...installForm, item_condition: e.target.value })}><option value="new">new</option><option value="refilled">refilled</option></select></label>
-          <label>{t.slotName}<input value={installForm.slot_name} onChange={(e) => setInstallForm({ ...installForm, slot_name: e.target.value })} /></label>
-          <label>{t.colorRole}<select value={installForm.color_role} onChange={(e) => setInstallForm({ ...installForm, color_role: e.target.value })}><option value="black">black</option><option value="cyan">cyan</option><option value="magenta">magenta</option><option value="yellow">yellow</option><option value="other">other</option></select></label>
-          <label>{t.comment}<textarea value={installForm.comment} onChange={(e) => setInstallForm({ ...installForm, comment: e.target.value })} /></label>
-          <button className="button" disabled={saving} type="submit">{t.save}</button>
-        </form>
-      </div>
+          {showStockInForm && (
+            <form className="panel" onSubmit={stockIn}>
+              <h2>{t.stockIn}</h2>
+              <label>{t.cartridgeModel}<select required value={stockInForm.cartridge_model_id} onChange={(e) => setStockInForm({ ...stockInForm, cartridge_model_id: e.target.value })}><option value=""></option>{models.map((model) => <option key={model.id} value={model.id}>{model.model_name}</option>)}</select></label>
+              <label>{t.quantity}<input min="1" required type="number" value={stockInForm.quantity} onChange={(e) => setStockInForm({ ...stockInForm, quantity: e.target.value })} /></label>
+              <label>{t.condition}<select value={stockInForm.item_condition} onChange={(e) => setStockInForm({ ...stockInForm, item_condition: e.target.value })}><option value="new">new</option><option value="refilled">refilled</option></select></label>
+              <label>{t.reason}<input value={stockInForm.reason} onChange={(e) => setStockInForm({ ...stockInForm, reason: e.target.value })} /></label>
+              <label>{t.comment}<textarea value={stockInForm.comment} onChange={(e) => setStockInForm({ ...stockInForm, comment: e.target.value })} /></label>
+              <button className="button" disabled={saving} type="submit">{t.save}</button>
+            </form>
+          )}
+        </div>
+      )}
     </section>
   );
 }
