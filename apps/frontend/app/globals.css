@@ -136,6 +136,12 @@ button {
   margin-bottom: 20px;
 }
 
+.page-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 h1,
 h2 {
   margin: 0;

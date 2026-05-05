@@ -71,7 +71,7 @@ Pages:
 
 - `http://localhost:3000/` - dashboard with backend, database, cartridge model, printer, and archived printer status cards.
 - `http://localhost:3000/cartridges` - cartridge stock table, cartridge model creation, and stock-in form.
-- `http://localhost:3000/printers` - printer list with Active/In repair/Archive/All filters, printer model creation, and printer creation form.
+- `http://localhost:3000/printers` - printer list with Active/In repair/Archive/All filters and collapsed quick-add forms for printer models and printers.
 - `http://localhost:3000/locations` - simple create/list sections for organizations, branches, and locations.
 - `http://localhost:3000/operations` - cartridge inventory transaction list.
 
@@ -114,9 +114,9 @@ Install a cartridge:
 Remove a cartridge:
 
 1. Open `http://localhost:3000/printers`.
-2. Select a printer in `Установленные картриджи` and click `Показать установленные`.
+2. Open the printer card from the printer model link or the `Открыть` button.
 3. Use `Снять картридж`, select installed cartridge, add removal reason/comment, and choose one follow-up action.
-4. Submit the form and refresh installed cartridges.
+4. Submit the form and check the installed cartridges table on the card.
 
 Removal follow-up actions:
 
@@ -128,25 +128,27 @@ Removal follow-up actions:
 Move a printer:
 
 1. Open `http://localhost:3000/printers`.
-2. Use `Переместить принтер`.
-3. Select printer, target location, reason, and notes.
-4. Submit the form and check the printer location in the table.
+2. Open the printer card from the printer model link or the `Открыть` button.
+3. Use `Переместить принтер`, select target location, reason, and notes.
+4. Submit the form and check the printer location on the card or in the list.
 
 Send a printer to repair and return it:
 
 1. Open `http://localhost:3000/printers`.
-2. Use `Отправить в ремонт`.
-3. To return it, use `Вернуть из ремонта` with the repair ID from the repair history block.
+2. Open the printer card from the printer model link or the `Открыть` button.
+3. Use `Отправить в ремонт`.
+4. To return it, use `Вернуть из ремонта` with the repair ID from the repair history block.
 
 Archive or write off a printer:
 
 1. Open `http://localhost:3000/printers`.
-2. Use `Архивировать / списать`.
-3. Select printer, archive reason, and comment.
+2. Open the printer card from the printer model link or the `Открыть` button.
+3. Use `Архивировать / списать`, select archive reason, and comment.
 4. Submit the form. The dashboard archived count updates on the next dashboard load.
 
 Printer archive behavior:
 
+- `/printers` is now a clean list plus quick-add forms. Operations for a specific printer live on `/printers/{printer_id}`.
 - Printers are not physically deleted from the database.
 - The main `/printers` table opens with the `Активные` filter and hides archived or written-off printers by default.
 - Use `Архив/Списанные` to view archived and written-off printers.
@@ -173,7 +175,7 @@ Available card actions:
 
 ### Printer Card
 
-Open a printer card from `http://localhost:3000/printers` by clicking the inventory number or the `Open` button.
+Open a printer card from `http://localhost:3000/printers` by clicking the printer model or the `Open` button.
 Direct URL format:
 
 ```text
