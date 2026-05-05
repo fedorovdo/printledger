@@ -1,5 +1,11 @@
 .env
 
+backups/*
+!backups/.gitkeep
+*.dump
+*.backup
+*.sql.gz
+
 __pycache__/
 *.py[cod]
 .pytest_cache/

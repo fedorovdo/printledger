@@ -93,6 +93,41 @@ $headers = @{ Authorization = "Bearer $($login.access_token)" }
 Invoke-RestMethod http://localhost:8000/api/auth/me -Headers $headers
 ```
 
+## Database Backup And Restore
+
+Backup files are written to `backups/` and are ignored by git. Make a backup before system updates, migrations, or risky manual database work.
+
+Windows backup:
+
+```powershell
+.\scripts\backup_db.ps1
+```
+
+Windows restore:
+
+```powershell
+.\scripts\restore_db.ps1 -BackupFile .\backups\printledger_backup_YYYY-MM-DD_HH-mm-ss.dump
+```
+
+Linux backup:
+
+```bash
+chmod +x scripts/backup_db.sh scripts/restore_db.sh
+./scripts/backup_db.sh
+```
+
+Linux restore:
+
+```bash
+./scripts/restore_db.sh backups/printledger_backup_YYYY-MM-DD_HH-mm-ss.dump
+```
+
+Restore overwrites the current PostgreSQL database and asks for `YES` confirmation. After restore, run:
+
+```powershell
+docker compose exec backend alembic upgrade head
+```
+
 ## Frontend MVP
 
 Open the app at `http://localhost:3000`.
