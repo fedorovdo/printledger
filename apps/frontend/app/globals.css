@@ -190,6 +190,29 @@ h2 {
   background: var(--panel);
 }
 
+.filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.filter-bar button {
+  min-height: 36px;
+  border: 1px solid var(--border-strong);
+  border-radius: 7px;
+  background: #ffffff;
+  color: var(--foreground);
+  padding: 7px 12px;
+  font-weight: 700;
+}
+
+.filter-bar button.active {
+  border-color: var(--accent);
+  background: #eaf1ff;
+  color: var(--accent-strong);
+}
+
 .table-wrap.compact {
   margin-top: 16px;
 }
@@ -427,6 +450,11 @@ textarea:focus {
 
 .row-warning td {
   background: #fff8e6;
+}
+
+.row-muted td {
+  background: #f8fafc;
+  color: var(--muted);
 }
 
 .badge {

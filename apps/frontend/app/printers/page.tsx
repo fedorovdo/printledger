@@ -6,7 +6,15 @@ import Link from "next/link";
 import { EmptyRow, Message, PageHeader } from "@/components/Ui";
 import { compactBody, fetchJson, patchJson, postJson } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
-import { dash, formatPrinterLabel, removeActionFlags } from "@/lib/labels";
+import {
+  dash,
+  formatPrinterLabel,
+  isActivePrinter,
+  isArchivedPrinter,
+  isRepairPrinter,
+  labelPrinterStatus,
+  removeActionFlags,
+} from "@/lib/labels";
 import type {
   CartridgeModel,
   InstalledCartridge,
@@ -35,8 +43,10 @@ const initialPrinter = {
   notes: "",
 };
 
+type PrinterFilter = "active" | "repair" | "archived" | "all";
+
 export default function PrintersPage() {
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
   const [printers, setPrinters] = useState<Printer[]>([]);
   const [printerModels, setPrinterModels] = useState<PrinterModel[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
@@ -51,6 +61,7 @@ export default function PrintersPage() {
   const [repairForm, setRepairForm] = useState({ printer_id: "", service_company: "", reason: "", notes: "" });
   const [returnForm, setReturnForm] = useState({ repair_id: "", result: "", notes: "" });
   const [archiveForm, setArchiveForm] = useState({ printer_id: "", archive_reason: "archived", comment: "" });
+  const [printerFilter, setPrinterFilter] = useState<PrinterFilter>("active");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -76,6 +87,24 @@ export default function PrintersPage() {
     () => new Map(cartridgeModels.map((model) => [model.id, model.model_name])),
     [cartridgeModels],
   );
+  const printerCounts = useMemo(() => ({
+    active: printers.filter(isActivePrinter).length,
+    repair: printers.filter(isRepairPrinter).length,
+    archived: printers.filter(isArchivedPrinter).length,
+    all: printers.length,
+  }), [printers]);
+  const filteredPrinters = useMemo(() => {
+    if (printerFilter === "active") {
+      return printers.filter(isActivePrinter);
+    }
+    if (printerFilter === "repair") {
+      return printers.filter(isRepairPrinter);
+    }
+    if (printerFilter === "archived") {
+      return printers.filter(isArchivedPrinter);
+    }
+    return printers;
+  }, [printerFilter, printers]);
 
   async function loadData() {
     setLoading(true);
@@ -139,6 +168,12 @@ export default function PrintersPage() {
     <section>
       <PageHeader title={t.printers} />
       <Message loading={loading} error={error} success={success} />
+      <div className="filter-bar">
+        <button className={printerFilter === "active" ? "active" : ""} onClick={() => setPrinterFilter("active")} type="button">{t.activePrinters} ({printerCounts.active})</button>
+        <button className={printerFilter === "repair" ? "active" : ""} onClick={() => setPrinterFilter("repair")} type="button">{t.repairPrinters} ({printerCounts.repair})</button>
+        <button className={printerFilter === "archived" ? "active" : ""} onClick={() => setPrinterFilter("archived")} type="button">{t.archivedWrittenOff} ({printerCounts.archived})</button>
+        <button className={printerFilter === "all" ? "active" : ""} onClick={() => setPrinterFilter("all")} type="button">{t.allPrinters} ({printerCounts.all})</button>
+      </div>
       <div className="table-wrap">
         <table>
           <thead>
@@ -154,18 +189,18 @@ export default function PrintersPage() {
             </tr>
           </thead>
           <tbody>
-            {printers.length === 0 ? (
+            {filteredPrinters.length === 0 ? (
               <EmptyRow colSpan={8} />
             ) : (
-              printers.map((printer) => (
-                <tr key={printer.id}>
+              filteredPrinters.map((printer) => (
+                <tr className={isArchivedPrinter(printer) ? "row-muted" : ""} key={printer.id}>
                   <td>{dash(printerModelName.get(printer.printer_model_id))}</td>
                   <td><Link className="text-link" href={`/printers/${printer.id}`}>{dash(printer.inventory_number)}</Link></td>
                   <td>{dash(printer.serial_number)}</td>
                   <td>{dash(printer.ip_address)}</td>
                   <td>{printer.current_location_id ? dash(locationName.get(printer.current_location_id)) : dash(null)}</td>
-                  <td>{printer.status}</td>
-                  <td>{printer.is_archived ? "yes" : "no"}</td>
+                  <td>{labelPrinterStatus(printer.status, locale)}</td>
+                  <td>{isArchivedPrinter(printer) ? t.yes : t.no}</td>
                   <td><Link className="button tiny secondary" href={`/printers/${printer.id}`}>{t.open}</Link></td>
                 </tr>
               ))

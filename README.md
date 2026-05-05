@@ -71,7 +71,7 @@ Pages:
 
 - `http://localhost:3000/` - dashboard with backend, database, cartridge model, printer, and archived printer status cards.
 - `http://localhost:3000/cartridges` - cartridge stock table, cartridge model creation, and stock-in form.
-- `http://localhost:3000/printers` - printer list, printer model creation, and printer creation form.
+- `http://localhost:3000/printers` - printer list with Active/In repair/Archive/All filters, printer model creation, and printer creation form.
 - `http://localhost:3000/locations` - simple create/list sections for organizations, branches, and locations.
 - `http://localhost:3000/operations` - cartridge inventory transaction list.
 
@@ -145,6 +145,14 @@ Archive or write off a printer:
 3. Select printer, archive reason, and comment.
 4. Submit the form. The dashboard archived count updates on the next dashboard load.
 
+Printer archive behavior:
+
+- Printers are not physically deleted from the database.
+- The main `/printers` table opens with the `Активные` filter and hides archived or written-off printers by default.
+- Use `Архив/Списанные` to view archived and written-off printers.
+- Use `Все` to view every printer in one table.
+- Archived and written-off rows are visually muted, and statuses are shown as readable labels.
+
 ### Cartridge Card
 
 Open a cartridge card from `http://localhost:3000/cartridges` by clicking the cartridge model name or the `Open` button.
@@ -173,6 +181,7 @@ http://localhost:3000/printers/{printer_id}
 ```
 
 The card shows printer details with resolved printer model and location names, plus installed cartridges, cartridge history, location history, repair history, and archive history.
+Archived and written-off printers show a badge on the card; install, move, and send-to-repair actions are disabled for them.
 
 Available card actions:
 

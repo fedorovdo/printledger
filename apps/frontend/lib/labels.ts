@@ -57,6 +57,37 @@ export function formatPrinterLabel(
   return parts.filter((part) => part !== undefined && part !== "").join(" · ");
 }
 
+export function isArchivedPrinter(printer: Printer) {
+  return printer.is_archived || printer.status === "archived" || printer.status === "written_off";
+}
+
+export function isActivePrinter(printer: Printer) {
+  return !isArchivedPrinter(printer) && printer.status === "in_work";
+}
+
+export function isRepairPrinter(printer: Printer) {
+  return !isArchivedPrinter(printer) && printer.status === "in_repair";
+}
+
+export function labelPrinterStatus(type: string, locale: Locale) {
+  const labels = {
+    ru: {
+      in_work: "В работе",
+      in_repair: "В ремонте",
+      archived: "Архив",
+      written_off: "Списан",
+    },
+    en: {
+      in_work: "In work",
+      in_repair: "In repair",
+      archived: "Archived",
+      written_off: "Written off",
+    },
+  };
+
+  return labels[locale][type as keyof typeof labels.ru] ?? type;
+}
+
 export function removeActionFlags(removalAction: string) {
   return {
     return_to_stock: removalAction === "return_to_stock",

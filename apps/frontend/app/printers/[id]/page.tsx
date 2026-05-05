@@ -7,7 +7,7 @@ import { useParams } from "next/navigation";
 import { EmptyRow, Message, PageHeader } from "@/components/Ui";
 import { ApiError, compactBody, fetchJson, patchJson, postJson } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
-import { dash, removeActionFlags } from "@/lib/labels";
+import { dash, isArchivedPrinter, labelPrinterStatus, removeActionFlags } from "@/lib/labels";
 import type {
   CartridgeModel,
   InstalledCartridge,
@@ -23,7 +23,7 @@ import type {
 export default function PrinterCardPage() {
   const params = useParams<{ id: string }>();
   const printerId = Number(params.id);
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
   const [printer, setPrinter] = useState<Printer | null>(null);
   const [printerModels, setPrinterModels] = useState<PrinterModel[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
@@ -127,6 +127,7 @@ export default function PrinterCardPage() {
   }
 
   const printerModel = printer ? printerModelById.get(printer.printer_model_id) : null;
+  const isLifecycleLocked = printer ? isArchivedPrinter(printer) : false;
 
   return (
     <section>
@@ -140,6 +141,8 @@ export default function PrinterCardPage() {
         <div className="detail-grid">
           <div className="panel">
             <h2>{t.printerCard}</h2>
+            {printer.status === "written_off" && <p><span className="badge warning">{t.writtenOffPrinterBadge}</span></p>}
+            {printer.status !== "written_off" && isLifecycleLocked && <p><span className="badge warning">{t.archivedPrinterBadge}</span></p>}
             <dl className="details">
               <dt>{t.printerModel}</dt><dd>{dash(printerModel?.name)}</dd>
               <dt>{t.vendor}</dt><dd>{dash(printerModel?.vendor)}</dd>
@@ -148,7 +151,7 @@ export default function PrinterCardPage() {
               <dt>{t.ipAddress}</dt><dd>{dash(printer.ip_address)}</dd>
               <dt>{t.macAddress}</dt><dd>{dash(printer.mac_address)}</dd>
               <dt>{t.location}</dt><dd>{printer.current_location_id ? dash(locationName.get(printer.current_location_id)) : dash(null)}</dd>
-              <dt>{t.status}</dt><dd>{printer.status}</dd>
+              <dt>{t.status}</dt><dd>{labelPrinterStatus(printer.status, locale)}</dd>
               <dt>{t.notes}</dt><dd>{dash(printer.notes)}</dd>
             </dl>
           </div>
@@ -163,6 +166,8 @@ export default function PrinterCardPage() {
           </div>
         </div>
       )}
+
+      {isLifecycleLocked && <Message info={t.archivedPrinterActionsDisabled} />}
 
       <div className="form-grid three">
         <form className="panel" onSubmit={(event) => submitForm(event, async () => {
@@ -183,7 +188,7 @@ export default function PrinterCardPage() {
           <label>{t.slotName}<input value={installForm.slot_name} onChange={(e) => setInstallForm({ ...installForm, slot_name: e.target.value })} /></label>
           <label>{t.colorRole}<select value={installForm.color_role} onChange={(e) => setInstallForm({ ...installForm, color_role: e.target.value })}><option value="black">black</option><option value="cyan">cyan</option><option value="magenta">magenta</option><option value="yellow">yellow</option><option value="other">other</option></select></label>
           <label>{t.comment}<textarea value={installForm.comment} onChange={(e) => setInstallForm({ ...installForm, comment: e.target.value })} /></label>
-          <button className="button" disabled={saving} type="submit">{t.save}</button>
+          <button className="button" disabled={saving || isLifecycleLocked} type="submit">{t.save}</button>
         </form>
 
         <form className="panel" onSubmit={(event) => submitForm(event, async () => {
@@ -215,7 +220,7 @@ export default function PrinterCardPage() {
           <label>{t.toLocation}<select required value={moveForm.to_location_id} onChange={(e) => setMoveForm({ ...moveForm, to_location_id: e.target.value })}><option value=""></option>{locations.map((location) => <option key={location.id} value={location.id}>{location.display_name}</option>)}</select></label>
           <label>{t.reason}<input value={moveForm.reason} onChange={(e) => setMoveForm({ ...moveForm, reason: e.target.value })} /></label>
           <label>{t.notes}<textarea value={moveForm.notes} onChange={(e) => setMoveForm({ ...moveForm, notes: e.target.value })} /></label>
-          <button className="button" disabled={saving} type="submit">{t.save}</button>
+          <button className="button" disabled={saving || isLifecycleLocked} type="submit">{t.save}</button>
         </form>
 
         <form className="panel" onSubmit={(event) => submitForm(event, async () => {
@@ -226,7 +231,7 @@ export default function PrinterCardPage() {
           <label>{t.serviceCompany}<input value={repairForm.service_company} onChange={(e) => setRepairForm({ ...repairForm, service_company: e.target.value })} /></label>
           <label>{t.reason}<input value={repairForm.reason} onChange={(e) => setRepairForm({ ...repairForm, reason: e.target.value })} /></label>
           <label>{t.notes}<textarea value={repairForm.notes} onChange={(e) => setRepairForm({ ...repairForm, notes: e.target.value })} /></label>
-          <button className="button" disabled={saving} type="submit">{t.save}</button>
+          <button className="button" disabled={saving || isLifecycleLocked} type="submit">{t.save}</button>
         </form>
 
         <form className="panel" onSubmit={(event) => submitForm(event, async () => {

@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { PageHeader, Message } from "@/components/Ui";
 import { fetchJson } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
+import { isActivePrinter, isRepairPrinter } from "@/lib/labels";
 import type { CartridgeModel, Printer } from "@/lib/types";
 
 type DashboardState = {
@@ -36,7 +37,7 @@ export default function DashboardPage() {
         backend: health.status,
         database: db.database,
         cartridgeModels: cartridges.length,
-        printers: printers.length,
+        printers: printers.filter((printer) => isActivePrinter(printer) || isRepairPrinter(printer)).length,
         archivedPrinters: archived.length,
       });
     } catch (err) {
@@ -84,4 +85,3 @@ export default function DashboardPage() {
     </section>
   );
 }
-
