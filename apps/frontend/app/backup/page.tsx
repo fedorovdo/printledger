@@ -6,7 +6,7 @@ import { EmptyRow, Message, PageHeader } from "@/components/Ui";
 import { downloadBlob, fetchJson, postJson } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { dash } from "@/lib/labels";
-import type { BackupFile } from "@/lib/types";
+import type { BackupFile, BackupRestoreResult } from "@/lib/types";
 
 function formatSize(bytes: number) {
   if (bytes < 1024) {
@@ -23,6 +23,9 @@ export default function BackupPage() {
   const [backups, setBackups] = useState<BackupFile[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [restoring, setRestoring] = useState(false);
+  const [selectedRestore, setSelectedRestore] = useState<BackupFile | null>(null);
+  const [restoreConfirmation, setRestoreConfirmation] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
@@ -70,6 +73,29 @@ export default function BackupPage() {
     }
   }
 
+  async function restoreBackup() {
+    if (!selectedRestore || restoreConfirmation !== "RESTORE") {
+      return;
+    }
+    setRestoring(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      const result = await postJson<BackupRestoreResult>(
+        `/api/backups/${encodeURIComponent(selectedRestore.filename)}/restore`,
+        { confirmation: restoreConfirmation },
+      );
+      setSuccess(`${t.backupRestored}. ${t.preRestoreBackup}: ${result.pre_restore_backup}. ${t.refreshAndLoginAfterRestore}`);
+      setSelectedRestore(null);
+      setRestoreConfirmation("");
+      await loadBackups();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unknown error");
+    } finally {
+      setRestoring(false);
+    }
+  }
+
   useEffect(() => {
     void loadBackups();
   }, []);
@@ -80,7 +106,41 @@ export default function BackupPage() {
         title={t.backup}
         action={<button className="button" disabled={saving} onClick={createBackup} type="button">{t.createBackup}</button>}
       />
-      <Message loading={loading || saving} error={error} success={success} info={t.restoreScriptsOnly} />
+      <Message loading={loading || saving || restoring} error={error} success={success} info={t.restoreScriptsOnly} />
+
+      {selectedRestore && (
+        <div className="panel danger-panel">
+          <h2>{t.restore}: {selectedRestore.filename}</h2>
+          <p>{t.restoreOverwritesDatabase}</p>
+          <p>{t.preRestoreBackupWillBeCreated}</p>
+          <p>{t.restoreAdminOnly}</p>
+          <label>
+            {t.enterRestore}
+            <input value={restoreConfirmation} onChange={(event) => setRestoreConfirmation(event.target.value)} />
+          </label>
+          <div className="page-actions">
+            <button
+              className="button"
+              disabled={restoring || restoreConfirmation !== "RESTORE"}
+              onClick={() => void restoreBackup()}
+              type="button"
+            >
+              {t.confirmRestore}
+            </button>
+            <button
+              className="button secondary"
+              disabled={restoring}
+              onClick={() => {
+                setSelectedRestore(null);
+                setRestoreConfirmation("");
+              }}
+              type="button"
+            >
+              {t.back}
+            </button>
+          </div>
+        </div>
+      )}
 
       <div className="table-wrap">
         <table>
@@ -90,11 +150,12 @@ export default function BackupPage() {
               <th>{t.date}</th>
               <th>{t.size}</th>
               <th>{t.download}</th>
+              <th>{t.restore}</th>
             </tr>
           </thead>
           <tbody>
             {backups.length === 0 ? (
-              <EmptyRow colSpan={4} />
+              <EmptyRow colSpan={5} />
             ) : (
               backups.map((backup) => (
                 <tr key={backup.filename}>
@@ -104,6 +165,20 @@ export default function BackupPage() {
                   <td>
                     <button className="button tiny secondary" onClick={() => void downloadBackup(backup)} type="button">
                       {t.download}
+                    </button>
+                  </td>
+                  <td>
+                    <button
+                      className="button tiny secondary"
+                      onClick={() => {
+                        setSelectedRestore(backup);
+                        setRestoreConfirmation("");
+                        setSuccess(null);
+                        setError(null);
+                      }}
+                      type="button"
+                    >
+                      {t.restore}
                     </button>
                   </td>
                 </tr>

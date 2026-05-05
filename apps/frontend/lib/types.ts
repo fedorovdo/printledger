@@ -142,3 +142,9 @@ export type BackupFile = {
   modified_at: string;
   download_url: string;
 };
+
+export type BackupRestoreResult = {
+  status: string;
+  filename: string;
+  pre_restore_backup: string;
+};

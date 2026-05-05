@@ -316,6 +316,18 @@ tr:last-child td {
   margin-top: 22px;
 }
 
+.danger-panel {
+  margin-bottom: 18px;
+  border-color: #f3b3ad;
+  background: #fffafa;
+}
+
+.danger-panel p {
+  margin: 0 0 10px;
+  color: var(--danger);
+  line-height: 1.45;
+}
+
 .detail-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(320px, 0.85fr);

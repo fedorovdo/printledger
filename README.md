@@ -103,7 +103,8 @@ Backups can also be managed from the authenticated web UI:
 http://localhost:3000/backup
 ```
 
-The web UI can list, create, and download backup files. Restore is intentionally available only through scripts because it overwrites the current database.
+The web UI can list, create, download, and restore backup files. Restore is protected by an explicit `RESTORE` confirmation because it overwrites the current database.
+Before any web restore, PrintLedger automatically creates a pre-restore emergency backup named `printledger_pre_restore_YYYY-MM-DD_HH-mm-ss.dump`.
 
 Windows backup:
 
@@ -111,7 +112,7 @@ Windows backup:
 .\scripts\backup_db.ps1
 ```
 
-Windows restore:
+Windows restore remains available as an emergency/manual option:
 
 ```powershell
 .\scripts\restore_db.ps1 -BackupFile .\backups\printledger_backup_YYYY-MM-DD_HH-mm-ss.dump
