@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     admin_username: str = Field(default="admin", alias="ADMIN_USERNAME")
     admin_password: str = Field(default="admin123", alias="ADMIN_PASSWORD")
     access_token_expire_hours: int = Field(default=12, alias="ACCESS_TOKEN_EXPIRE_HOURS")
+    backup_dir: str = Field(default="backups", alias="BACKUP_DIR")
 
 
 settings = Settings()

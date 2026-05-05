@@ -47,6 +47,10 @@ function redirectToLogin(path: string) {
   }
 }
 
+export function buildApiUrl(path: string) {
+  return `${API_BASE_URL}${path}`;
+}
+
 async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   const token = getAuthToken();
   const response = await fetch(`${API_BASE_URL}${path}`, {
@@ -87,6 +91,24 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   }
 
   return (await response.json()) as T;
+}
+
+export async function downloadBlob(path: string): Promise<Blob> {
+  const token = getAuthToken();
+  const response = await fetch(buildApiUrl(path), {
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  });
+
+  if (!response.ok) {
+    if (response.status === 401) {
+      redirectToLogin(path);
+    }
+    throw new ApiError(`${response.status} ${response.statusText}`, response.status);
+  }
+
+  return response.blob();
 }
 
 export function fetchJson<T>(path: string): Promise<T> {

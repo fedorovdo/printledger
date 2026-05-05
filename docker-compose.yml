@@ -33,10 +33,12 @@ services:
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin123}
       APP_VERSION: ${APP_VERSION:-0.1.0}
       APP_ENVIRONMENT: ${APP_ENVIRONMENT:-local}
+      BACKUP_DIR: ${BACKUP_DIR:-/backups}
     ports:
       - "${BACKEND_PORT:-8000}:8000"
     volumes:
       - ./apps/backend:/app
+      - ./backups:/backups
     depends_on:
       postgres:
         condition: service_healthy

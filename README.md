@@ -97,6 +97,14 @@ Invoke-RestMethod http://localhost:8000/api/auth/me -Headers $headers
 
 Backup files are written to `backups/` and are ignored by git. Make a backup before system updates, migrations, or risky manual database work.
 
+Backups can also be managed from the authenticated web UI:
+
+```text
+http://localhost:3000/backup
+```
+
+The web UI can list, create, and download backup files. Restore is intentionally available only through scripts because it overwrites the current database.
+
 Windows backup:
 
 ```powershell
@@ -139,6 +147,7 @@ Pages:
 - `http://localhost:3000/printers` - printer list with Active/In repair/Archive/All filters and collapsed quick-add forms for printer models and printers.
 - `http://localhost:3000/locations` - simple create/list sections for organizations, branches, and locations.
 - `http://localhost:3000/operations` - cartridge inventory transaction list.
+- `http://localhost:3000/backup` - authenticated backup list, create backup action, and backup download.
 - `http://localhost:3000/about` - application version, backend/database status, environment, and documentation hint.
 
 The UI uses `NEXT_PUBLIC_API_URL` when provided and falls back to `http://localhost:8000`.

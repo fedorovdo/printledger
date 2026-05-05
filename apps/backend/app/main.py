@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.api.auth import router as auth_router
+from app.api.backups import router as backups_router
 from app.api.cartridge_inventory import router as cartridge_inventory_router
 from app.api.catalog import router as catalog_router
 from app.api.db import router as db_router
@@ -61,6 +62,7 @@ app.include_router(health_router)
 app.include_router(db_router)
 app.include_router(auth_router)
 app.include_router(system_router)
+app.include_router(backups_router)
 app.include_router(printer_lifecycle_router)
 app.include_router(catalog_router)
 app.include_router(cartridge_inventory_router)

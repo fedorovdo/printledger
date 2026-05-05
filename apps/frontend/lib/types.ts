@@ -135,3 +135,10 @@ export type PrinterArchiveHistory = {
   archived_at: string;
   comment: string | null;
 };
+
+export type BackupFile = {
+  filename: string;
+  size_bytes: number;
+  modified_at: string;
+  download_url: string;
+};
