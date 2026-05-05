@@ -106,6 +106,8 @@ http://localhost:3000/backup
 The web UI can list, create, download, and restore backup files. Restore is protected by an explicit `RESTORE` confirmation because it overwrites the current database.
 Before any web restore, PrintLedger automatically creates a pre-restore emergency backup named `printledger_pre_restore_YYYY-MM-DD_HH-mm-ss.dump`.
 
+PostgreSQL client tools inside the backend image must match the PostgreSQL server major version. The current Compose stack uses PostgreSQL 16, so `apps/backend/Dockerfile` installs `postgresql-client-16`. If the `postgres` image is later upgraded to another major version, update the backend client package at the same time before creating or restoring backups.
+
 Windows backup:
 
 ```powershell

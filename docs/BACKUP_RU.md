@@ -27,6 +27,12 @@ printledger_backup_YYYY-MM-DD_HH-mm-ss.dump
 
 Файлы backup не попадают в git.
 
+## Совместимость версий PostgreSQL
+
+Версия `pg_dump` и `pg_restore` в backend-контейнере должна совпадать с major-версией PostgreSQL server. Сейчас Docker Compose использует PostgreSQL 16 (`postgres:16-alpine`), поэтому backend устанавливает `postgresql-client-16`.
+
+Если в будущем меняется образ `postgres` на другую major-версию, одновременно обновите версию PostgreSQL client в `apps/backend/Dockerfile`. Иначе backup/restore может падать из-за несовместимых параметров дампа.
+
 ## Backup через веб-интерфейс
 
 После входа в систему откройте:

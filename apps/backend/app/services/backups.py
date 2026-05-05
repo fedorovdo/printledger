@@ -10,6 +10,10 @@ from app.core.config import settings
 from app.schemas.backups import BackupFileRead, BackupRestoreResult
 
 ALLOWED_BACKUP_SUFFIXES = (".dump", ".backup", ".sql.gz")
+TRANSACTION_TIMEOUT_MARKERS = (
+    'unrecognized configuration parameter "transaction_timeout"',
+    "SET transaction_timeout = 0",
+)
 
 
 def get_backup_dir() -> Path:
@@ -98,6 +102,10 @@ def _run_postgres_command(command: list[str], database_url: URL, error_message: 
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=exc.stderr.strip() or error_message,
         ) from exc
+
+
+def _is_transaction_timeout_restore_error(stderr: str) -> bool:
+    return any(marker in stderr for marker in TRANSACTION_TIMEOUT_MARKERS)
 
 
 def create_backup(prefix: str = "printledger_backup") -> BackupFileRead:
@@ -190,7 +198,63 @@ def _restore_custom_format(backup_path: Path, database_url: URL) -> None:
         str(backup_path),
     ]
     command.extend(_connection_args(database_url))
-    _run_postgres_command(command, database_url, "pg_restore failed")
+    result = subprocess.run(
+        command,
+        env=_database_env(database_url),
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode == 0:
+        return
+
+    if not _is_transaction_timeout_restore_error(result.stderr):
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=result.stderr.strip() or "pg_restore failed",
+        )
+
+    _drop_and_create_database(database_url)
+    _restore_custom_format_without_transaction_timeout(backup_path, database_url)
+
+
+def _restore_custom_format_without_transaction_timeout(backup_path: Path, database_url: URL) -> None:
+    sql_result = subprocess.run(
+        ["pg_restore", "--clean", "--if-exists", str(backup_path)],
+        env=_database_env(database_url),
+        capture_output=True,
+        text=True,
+    )
+    if sql_result.returncode != 0:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=sql_result.stderr.strip() or "pg_restore SQL fallback failed",
+        )
+
+    filtered_sql = "\n".join(
+        line for line in sql_result.stdout.splitlines() if line.strip() != "SET transaction_timeout = 0;"
+    )
+    psql_command = [
+        "psql",
+        "-v",
+        "ON_ERROR_STOP=1",
+        "-U",
+        database_url.username or "printledger",
+        "-d",
+        database_url.database or "printledger",
+    ]
+    psql_command.extend(_connection_args(database_url))
+    psql_result = subprocess.run(
+        psql_command,
+        env=_database_env(database_url),
+        input=filtered_sql,
+        capture_output=True,
+        text=True,
+    )
+    if psql_result.returncode != 0:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=psql_result.stderr.strip() or "psql restore fallback failed",
+        )
 
 
 def _restore_sql_gz(backup_path: Path, database_url: URL) -> None:
@@ -201,6 +265,8 @@ def _restore_sql_gz(backup_path: Path, database_url: URL) -> None:
     )
     psql_command = [
         "psql",
+        "-v",
+        "ON_ERROR_STOP=1",
         "-U",
         database_url.username or "printledger",
         "-d",
