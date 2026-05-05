@@ -7,7 +7,15 @@ import { useParams } from "next/navigation";
 import { EmptyRow, Message, PageHeader } from "@/components/Ui";
 import { ApiError, compactBody, fetchJson, postJson } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
-import { dash, formatPrinterLabel, labelTransaction } from "@/lib/labels";
+import {
+  dash,
+  formatCartridgeCondition,
+  formatCartridgeType,
+  formatColorRole,
+  formatCorrectionDirection,
+  formatPrinterLabel,
+  labelTransaction,
+} from "@/lib/labels";
 import type {
   CartridgeModel,
   CartridgeStock,
@@ -117,7 +125,7 @@ export default function CartridgeCardPage() {
               <dt>{t.model}</dt><dd>{model.model_name}</dd>
               <dt>{t.vendor}</dt><dd>{dash(model.vendor)}</dd>
               <dt>{t.sku}</dt><dd>{dash(model.purchase_sku)}</dd>
-              <dt>{t.cartridgeType}</dt><dd>{model.cartridge_type}</dd>
+              <dt>{t.cartridgeType}</dt><dd>{formatCartridgeType(model.cartridge_type, locale)}</dd>
               <dt>{t.minStock}</dt><dd>{model.min_stock_level}</dd>
               <dt>{t.notes}</dt><dd>{dash(model.notes)}</dd>
             </dl>
@@ -148,7 +156,7 @@ export default function CartridgeCardPage() {
         }, t.operationSaved)}>
           <h2>{t.stockIn}</h2>
           <label>{t.quantity}<input min="1" type="number" value={stockInForm.quantity} onChange={(e) => setStockInForm({ ...stockInForm, quantity: e.target.value })} /></label>
-          <label>{t.condition}<select value={stockInForm.item_condition} onChange={(e) => setStockInForm({ ...stockInForm, item_condition: e.target.value })}><option value="new">new</option><option value="refilled">refilled</option></select></label>
+          <label>{t.condition}<select value={stockInForm.item_condition} onChange={(e) => setStockInForm({ ...stockInForm, item_condition: e.target.value })}><option value="new">{formatCartridgeCondition("new", locale)}</option><option value="refilled">{formatCartridgeCondition("refilled", locale)}</option></select></label>
           <label>{t.reason}<input value={stockInForm.reason} onChange={(e) => setStockInForm({ ...stockInForm, reason: e.target.value })} /></label>
           <label>{t.comment}<textarea value={stockInForm.comment} onChange={(e) => setStockInForm({ ...stockInForm, comment: e.target.value })} /></label>
           <button className="button" disabled={saving} type="submit">{t.save}</button>
@@ -168,9 +176,9 @@ export default function CartridgeCardPage() {
         }, t.cartridgeInstalled)}>
           <h2>{t.installCartridge}</h2>
           <label>{t.printers}<select required value={installForm.printer_id} onChange={(e) => setInstallForm({ ...installForm, printer_id: e.target.value })}><option value=""></option>{printers.filter((printer) => !printer.is_archived).map((printer) => <option key={printer.id} value={printer.id}>{formatPrinterLabel(printer, printerModelMap, locationMap)}</option>)}</select></label>
-          <label>{t.condition}<select value={installForm.item_condition} onChange={(e) => setInstallForm({ ...installForm, item_condition: e.target.value })}><option value="new">new</option><option value="refilled">refilled</option></select></label>
+          <label>{t.condition}<select value={installForm.item_condition} onChange={(e) => setInstallForm({ ...installForm, item_condition: e.target.value })}><option value="new">{formatCartridgeCondition("new", locale)}</option><option value="refilled">{formatCartridgeCondition("refilled", locale)}</option></select></label>
           <label>{t.slotName}<input value={installForm.slot_name} onChange={(e) => setInstallForm({ ...installForm, slot_name: e.target.value })} /></label>
-          <label>{t.colorRole}<select value={installForm.color_role} onChange={(e) => setInstallForm({ ...installForm, color_role: e.target.value })}><option value="black">black</option><option value="cyan">cyan</option><option value="magenta">magenta</option><option value="yellow">yellow</option><option value="other">other</option></select></label>
+          <label>{t.colorRole}<select value={installForm.color_role} onChange={(e) => setInstallForm({ ...installForm, color_role: e.target.value })}><option value="black">{formatColorRole("black", locale)}</option><option value="cyan">{formatColorRole("cyan", locale)}</option><option value="magenta">{formatColorRole("magenta", locale)}</option><option value="yellow">{formatColorRole("yellow", locale)}</option><option value="other">{formatColorRole("other", locale)}</option></select></label>
           <label>{t.comment}<textarea value={installForm.comment} onChange={(e) => setInstallForm({ ...installForm, comment: e.target.value })} /></label>
           <button className="button" disabled={saving} type="submit">{t.save}</button>
         </form>
@@ -188,8 +196,8 @@ export default function CartridgeCardPage() {
         }, t.operationSaved)}>
           <h2>{t.correction}</h2>
           <label>{t.quantity}<input min="1" type="number" value={correctionForm.quantity} onChange={(e) => setCorrectionForm({ ...correctionForm, quantity: e.target.value })} /></label>
-          <label>{t.direction}<select value={correctionForm.direction} onChange={(e) => setCorrectionForm({ ...correctionForm, direction: e.target.value })}><option value="plus">plus</option><option value="minus">minus</option></select></label>
-          <label>{t.condition}<select value={correctionForm.item_condition} onChange={(e) => setCorrectionForm({ ...correctionForm, item_condition: e.target.value })}><option value="new">new</option><option value="refilled">refilled</option></select></label>
+          <label>{t.direction}<select value={correctionForm.direction} onChange={(e) => setCorrectionForm({ ...correctionForm, direction: e.target.value })}><option value="plus">{formatCorrectionDirection("plus", locale)}</option><option value="minus">{formatCorrectionDirection("minus", locale)}</option></select></label>
+          <label>{t.condition}<select value={correctionForm.item_condition} onChange={(e) => setCorrectionForm({ ...correctionForm, item_condition: e.target.value })}><option value="new">{formatCartridgeCondition("new", locale)}</option><option value="refilled">{formatCartridgeCondition("refilled", locale)}</option></select></label>
           <label>{t.reason}<input required value={correctionForm.reason} onChange={(e) => setCorrectionForm({ ...correctionForm, reason: e.target.value })} /></label>
           <label>{t.comment}<textarea value={correctionForm.comment} onChange={(e) => setCorrectionForm({ ...correctionForm, comment: e.target.value })} /></label>
           <button className="button" disabled={saving} type="submit">{t.save}</button>
@@ -245,7 +253,7 @@ function HistoryTable({
                 <td>{new Date(item.created_at).toLocaleString()}</td>
                 <td>{labelTransaction(item.transaction_type, locale)}</td>
                 <td>{item.quantity}</td>
-                <td>{dash(item.item_condition)}</td>
+                <td>{formatCartridgeCondition(item.item_condition, locale)}</td>
                 <td>{item.printer_id ? dash(printerName.get(item.printer_id)) : dash(null)}</td>
                 <td>{dash(item.reason)}</td>
                 <td>{dash(item.comment)}</td>

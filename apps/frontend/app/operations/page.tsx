@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { EmptyRow, Message, PageHeader } from "@/components/Ui";
 import { fetchJson } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
-import { dash, labelTransaction } from "@/lib/labels";
+import { dash, formatCartridgeCondition, labelTransaction } from "@/lib/labels";
 import type { CartridgeModel, CartridgeTransaction, Printer } from "@/lib/types";
 
 export default function OperationsPage() {
@@ -78,7 +78,7 @@ export default function OperationsPage() {
                   <td>{dash(cartridgeModelName.get(operation.cartridge_model_id))}</td>
                   <td>{labelTransaction(operation.transaction_type, locale)}</td>
                   <td>{operation.quantity}</td>
-                  <td>{dash(operation.item_condition)}</td>
+                  <td>{formatCartridgeCondition(operation.item_condition, locale)}</td>
                   <td>{operation.printer_id ? dash(printerName.get(operation.printer_id)) : dash(null)}</td>
                   <td>{dash(operation.comment)}</td>
                 </tr>

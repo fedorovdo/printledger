@@ -32,6 +32,173 @@ export function labelTransaction(type: string, locale: Locale) {
   return operationLabels[locale][type as keyof typeof operationLabels.ru] ?? type;
 }
 
+function formatEnum(
+  value: string | null | undefined,
+  locale: Locale,
+  labels: Record<Locale, Record<string, string>>,
+) {
+  if (!value) {
+    return dash(value);
+  }
+  return labels[locale][value] ?? value;
+}
+
+export function formatCartridgeCondition(value: string | null | undefined, locale: Locale) {
+  return formatEnum(value, locale, {
+    ru: {
+      new: "Новый",
+      refilled: "Заправленный",
+    },
+    en: {
+      new: "New",
+      refilled: "Refilled",
+    },
+  });
+}
+
+export function formatCorrectionDirection(value: string | null | undefined, locale: Locale) {
+  return formatEnum(value, locale, {
+    ru: {
+      plus: "Плюс",
+      minus: "Минус",
+    },
+    en: {
+      plus: "Add",
+      minus: "Subtract",
+    },
+  });
+}
+
+export function formatColorRole(value: string | null | undefined, locale: Locale) {
+  return formatEnum(value, locale, {
+    ru: {
+      black: "Черный",
+      cyan: "Голубой",
+      magenta: "Пурпурный",
+      yellow: "Желтый",
+      other: "Другое",
+    },
+    en: {
+      black: "Black",
+      cyan: "Cyan",
+      magenta: "Magenta",
+      yellow: "Yellow",
+      other: "Other",
+    },
+  });
+}
+
+export function formatCartridgeType(value: string | null | undefined, locale: Locale) {
+  return formatEnum(value, locale, {
+    ru: {
+      toner: "Тонер",
+      ink: "Чернила",
+      other: "Другое",
+    },
+    en: {
+      toner: "Toner",
+      ink: "Ink",
+      other: "Other",
+    },
+  });
+}
+
+export function formatPrintTechnology(value: string | null | undefined, locale: Locale) {
+  return formatEnum(value, locale, {
+    ru: {
+      laser: "Лазерный",
+      inkjet: "Струйный",
+      other: "Другое",
+    },
+    en: {
+      laser: "Laser",
+      inkjet: "Inkjet",
+      other: "Other",
+    },
+  });
+}
+
+export function formatColorMode(value: string | null | undefined, locale: Locale) {
+  return formatEnum(value, locale, {
+    ru: {
+      mono: "Монохромный",
+      color: "Цветной",
+    },
+    en: {
+      mono: "Mono",
+      color: "Color",
+    },
+  });
+}
+
+export function formatInstalledCartridgeStatus(value: string | null | undefined, locale: Locale) {
+  return formatEnum(value, locale, {
+    ru: {
+      installed: "Установлен",
+      empty: "Пустой",
+      removed: "Снят",
+    },
+    en: {
+      installed: "Installed",
+      empty: "Empty",
+      removed: "Removed",
+    },
+  });
+}
+
+export function formatRemoveAction(value: string | null | undefined, locale: Locale) {
+  return formatEnum(value, locale, {
+    ru: {
+      return_to_stock: "Вернуть на склад",
+      send_to_refill: "Отправить на заправку",
+      write_off: "Списать",
+      remove_only: "Просто снять",
+    },
+    en: {
+      return_to_stock: "Return to stock",
+      send_to_refill: "Send to refill",
+      write_off: "Write off",
+      remove_only: "Remove only",
+    },
+  });
+}
+
+export function formatRepairStatus(value: string | null | undefined, locale: Locale) {
+  return formatEnum(value, locale, {
+    ru: {
+      sent: "Отправлен",
+      in_progress: "В работе",
+      returned: "Возвращен",
+      cancelled: "Отменен",
+    },
+    en: {
+      sent: "Sent",
+      in_progress: "In progress",
+      returned: "Returned",
+      cancelled: "Cancelled",
+    },
+  });
+}
+
+export function formatArchiveReason(value: string | null | undefined, locale: Locale) {
+  return formatEnum(value, locale, {
+    ru: {
+      archived: "Архив",
+      written_off: "Списан",
+      lost: "Утерян",
+      duplicate: "Дубликат",
+      error: "Ошибка",
+    },
+    en: {
+      archived: "Archived",
+      written_off: "Written off",
+      lost: "Lost",
+      duplicate: "Duplicate",
+      error: "Error",
+    },
+  });
+}
+
 export function dash(value: string | number | null | undefined) {
   return value === null || value === undefined || value === "" ? "\u2014" : String(value);
 }

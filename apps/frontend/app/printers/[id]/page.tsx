@@ -7,7 +7,20 @@ import { useParams } from "next/navigation";
 import { EmptyRow, Message, PageHeader } from "@/components/Ui";
 import { ApiError, compactBody, fetchJson, patchJson, postJson } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
-import { dash, isArchivedPrinter, labelPrinterStatus, removeActionFlags } from "@/lib/labels";
+import {
+  dash,
+  formatArchiveReason,
+  formatCartridgeCondition,
+  formatColorMode,
+  formatColorRole,
+  formatInstalledCartridgeStatus,
+  formatPrintTechnology,
+  formatRemoveAction,
+  formatRepairStatus,
+  isArchivedPrinter,
+  labelPrinterStatus,
+  removeActionFlags,
+} from "@/lib/labels";
 import type {
   CartridgeModel,
   InstalledCartridge,
@@ -146,6 +159,8 @@ export default function PrinterCardPage() {
             <dl className="details">
               <dt>{t.printerModel}</dt><dd>{dash(printerModel?.name)}</dd>
               <dt>{t.vendor}</dt><dd>{dash(printerModel?.vendor)}</dd>
+              <dt>{t.printTechnology}</dt><dd>{formatPrintTechnology(printerModel?.print_technology, locale)}</dd>
+              <dt>{t.colorMode}</dt><dd>{formatColorMode(printerModel?.color_mode, locale)}</dd>
               <dt>{t.inventoryNumber}</dt><dd>{dash(printer.inventory_number)}</dd>
               <dt>{t.serialNumber}</dt><dd>{dash(printer.serial_number)}</dd>
               <dt>{t.ipAddress}</dt><dd>{dash(printer.ip_address)}</dd>
@@ -184,9 +199,9 @@ export default function PrinterCardPage() {
         }, t.cartridgeInstalled)}>
           <h2>{t.installCartridge}</h2>
           <label>{t.cartridgeModel}<select required value={installForm.cartridge_model_id} onChange={(e) => setInstallForm({ ...installForm, cartridge_model_id: e.target.value })}><option value=""></option>{cartridgeModels.map((model) => <option key={model.id} value={model.id}>{model.model_name}</option>)}</select></label>
-          <label>{t.condition}<select value={installForm.item_condition} onChange={(e) => setInstallForm({ ...installForm, item_condition: e.target.value })}><option value="new">new</option><option value="refilled">refilled</option></select></label>
+          <label>{t.condition}<select value={installForm.item_condition} onChange={(e) => setInstallForm({ ...installForm, item_condition: e.target.value })}><option value="new">{formatCartridgeCondition("new", locale)}</option><option value="refilled">{formatCartridgeCondition("refilled", locale)}</option></select></label>
           <label>{t.slotName}<input value={installForm.slot_name} onChange={(e) => setInstallForm({ ...installForm, slot_name: e.target.value })} /></label>
-          <label>{t.colorRole}<select value={installForm.color_role} onChange={(e) => setInstallForm({ ...installForm, color_role: e.target.value })}><option value="black">black</option><option value="cyan">cyan</option><option value="magenta">magenta</option><option value="yellow">yellow</option><option value="other">other</option></select></label>
+          <label>{t.colorRole}<select value={installForm.color_role} onChange={(e) => setInstallForm({ ...installForm, color_role: e.target.value })}><option value="black">{formatColorRole("black", locale)}</option><option value="cyan">{formatColorRole("cyan", locale)}</option><option value="magenta">{formatColorRole("magenta", locale)}</option><option value="yellow">{formatColorRole("yellow", locale)}</option><option value="other">{formatColorRole("other", locale)}</option></select></label>
           <label>{t.comment}<textarea value={installForm.comment} onChange={(e) => setInstallForm({ ...installForm, comment: e.target.value })} /></label>
           <button className="button" disabled={saving || isLifecycleLocked} type="submit">{t.save}</button>
         </form>
@@ -203,7 +218,7 @@ export default function PrinterCardPage() {
           <h2>{t.removeCartridge}</h2>
           <label>{t.installedCartridge}<select required value={removeForm.installed_cartridge_id} onChange={(e) => setRemoveForm({ ...removeForm, installed_cartridge_id: e.target.value })}><option value=""></option>{installed.map((item) => <option key={item.id} value={item.id}>{cartridgeModelName.get(item.cartridge_model_id) ?? `#${item.id}`} / {dash(item.slot_name)}</option>)}</select></label>
           <label>{t.removalReason}<input required value={removeForm.removal_reason} onChange={(e) => setRemoveForm({ ...removeForm, removal_reason: e.target.value })} /></label>
-          <label>{t.removalAction}<select value={removeForm.removal_action} onChange={(e) => setRemoveForm({ ...removeForm, removal_action: e.target.value })}><option value="return_to_stock">{t.returnToStock}</option><option value="send_to_refill">{t.sendToRefill}</option><option value="write_off">{t.writeOff}</option><option value="remove_only">{t.removeOnly}</option></select></label>
+          <label>{t.removalAction}<select value={removeForm.removal_action} onChange={(e) => setRemoveForm({ ...removeForm, removal_action: e.target.value })}><option value="return_to_stock">{formatRemoveAction("return_to_stock", locale)}</option><option value="send_to_refill">{formatRemoveAction("send_to_refill", locale)}</option><option value="write_off">{formatRemoveAction("write_off", locale)}</option><option value="remove_only">{formatRemoveAction("remove_only", locale)}</option></select></label>
           <label>{t.comment}<textarea value={removeForm.comment} onChange={(e) => setRemoveForm({ ...removeForm, comment: e.target.value })} /></label>
           <button className="button" disabled={saving} type="submit">{t.save}</button>
         </form>
@@ -243,7 +258,7 @@ export default function PrinterCardPage() {
           setReturnForm({ repair_id: "", result: "", notes: "" });
         }, t.repairReturned)}>
           <h2>{t.returnFromRepair}</h2>
-          <label>{t.repairId}<select required value={returnForm.repair_id} onChange={(e) => setReturnForm({ ...returnForm, repair_id: e.target.value })}><option value=""></option>{repairs.map((repair) => <option key={repair.id} value={repair.id}>#{repair.id} / {repair.repair_status}</option>)}</select></label>
+          <label>{t.repairId}<select required value={returnForm.repair_id} onChange={(e) => setReturnForm({ ...returnForm, repair_id: e.target.value })}><option value=""></option>{repairs.map((repair) => <option key={repair.id} value={repair.id}>#{repair.id} / {formatRepairStatus(repair.repair_status, locale)}</option>)}</select></label>
           <label>{t.result}<textarea value={returnForm.result} onChange={(e) => setReturnForm({ ...returnForm, result: e.target.value })} /></label>
           <label>{t.notes}<textarea value={returnForm.notes} onChange={(e) => setReturnForm({ ...returnForm, notes: e.target.value })} /></label>
           <button className="button" disabled={saving} type="submit">{t.save}</button>
@@ -254,7 +269,7 @@ export default function PrinterCardPage() {
           setArchiveForm({ archive_reason: "archived", comment: "" });
         }, t.printerArchived)}>
           <h2>{t.archivePrinter}</h2>
-          <label>{t.archiveReason}<select value={archiveForm.archive_reason} onChange={(e) => setArchiveForm({ ...archiveForm, archive_reason: e.target.value })}><option value="archived">archived</option><option value="written_off">written_off</option><option value="lost">lost</option><option value="duplicate">duplicate</option><option value="error">error</option></select></label>
+          <label>{t.archiveReason}<select value={archiveForm.archive_reason} onChange={(e) => setArchiveForm({ ...archiveForm, archive_reason: e.target.value })}><option value="archived">{formatArchiveReason("archived", locale)}</option><option value="written_off">{formatArchiveReason("written_off", locale)}</option><option value="lost">{formatArchiveReason("lost", locale)}</option><option value="duplicate">{formatArchiveReason("duplicate", locale)}</option><option value="error">{formatArchiveReason("error", locale)}</option></select></label>
           <label>{t.comment}<textarea value={archiveForm.comment} onChange={(e) => setArchiveForm({ ...archiveForm, comment: e.target.value })} /></label>
           <button className="button" disabled={saving} type="submit">{t.save}</button>
         </form>
@@ -284,7 +299,7 @@ function InstalledTable({
   items: InstalledCartridge[];
   cartridgeModelName: Map<number, string>;
 }) {
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
   return (
     <div className="panel wide">
       <h2>{t.installedCartridges}</h2>
@@ -296,10 +311,10 @@ function InstalledTable({
               <tr key={item.id}>
                 <td>{dash(cartridgeModelName.get(item.cartridge_model_id))}</td>
                 <td>{dash(item.slot_name)}</td>
-                <td>{dash(item.color_role)}</td>
-                <td>{item.item_condition}</td>
+                <td>{formatColorRole(item.color_role, locale)}</td>
+                <td>{formatCartridgeCondition(item.item_condition, locale)}</td>
                 <td>{formatDate(item.installed_at)}</td>
-                <td>{item.status}</td>
+                <td>{formatInstalledCartridgeStatus(item.status, locale)}</td>
               </tr>
             ))}
           </tbody>
@@ -316,7 +331,7 @@ function CartridgeHistoryTable({
   items: PrinterCartridgeHistory[];
   cartridgeModelName: Map<number, string>;
 }) {
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
   return (
     <div className="panel wide">
       <h2>{t.cartridgeHistory}</h2>
@@ -328,8 +343,8 @@ function CartridgeHistoryTable({
               <tr key={item.id}>
                 <td>{dash(cartridgeModelName.get(item.cartridge_model_id))}</td>
                 <td>{dash(item.slot_name)}</td>
-                <td>{dash(item.color_role)}</td>
-                <td>{item.item_condition}</td>
+                <td>{formatColorRole(item.color_role, locale)}</td>
+                <td>{formatCartridgeCondition(item.item_condition, locale)}</td>
                 <td>{formatDate(item.installed_at)} / {formatDate(item.removed_at)}</td>
                 <td>{dash(item.removal_reason)}</td>
                 <td>{dash(item.notes)}</td>
@@ -374,7 +389,7 @@ function LocationHistoryTable({
 }
 
 function RepairHistoryTable({ items }: { items: PrinterRepair[] }) {
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
   return (
     <div className="panel wide">
       <h2>{t.repairHistory}</h2>
@@ -385,7 +400,7 @@ function RepairHistoryTable({ items }: { items: PrinterRepair[] }) {
             {items.length === 0 ? <EmptyRow colSpan={6} /> : items.map((item) => (
               <tr key={item.id}>
                 <td>{item.id}</td>
-                <td>{item.repair_status}</td>
+                <td>{formatRepairStatus(item.repair_status, locale)}</td>
                 <td>{formatDate(item.sent_at)} / {formatDate(item.returned_at)}</td>
                 <td>{dash(item.service_company)}</td>
                 <td>{dash(item.reason)}</td>
@@ -400,7 +415,7 @@ function RepairHistoryTable({ items }: { items: PrinterRepair[] }) {
 }
 
 function ArchiveHistoryTable({ items }: { items: PrinterArchiveHistory[] }) {
-  const { t } = useI18n();
+  const { locale, t } = useI18n();
   return (
     <div className="panel wide">
       <h2>{t.archiveHistory}</h2>
@@ -411,7 +426,7 @@ function ArchiveHistoryTable({ items }: { items: PrinterArchiveHistory[] }) {
             {items.length === 0 ? <EmptyRow colSpan={3} /> : items.map((item) => (
               <tr key={item.id}>
                 <td>{formatDate(item.archived_at)}</td>
-                <td>{item.archive_reason}</td>
+                <td>{formatArchiveReason(item.archive_reason, locale)}</td>
                 <td>{dash(item.comment)}</td>
               </tr>
             ))}

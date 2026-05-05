@@ -77,6 +77,7 @@ Pages:
 
 The UI uses `NEXT_PUBLIC_API_URL` when provided and falls back to `http://localhost:8000`.
 RU is the default language; switch to EN from the top-right language control.
+Frontend enum labels are localized for RU/EN, while API payload values remain stable English enum values such as `new`, `refilled`, `laser`, and `written_off`.
 
 Manual frontend checks:
 

@@ -8,6 +8,8 @@ import { compactBody, fetchJson, postJson } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import {
   dash,
+  formatColorMode,
+  formatPrintTechnology,
   isActivePrinter,
   isArchivedPrinter,
   isRepairPrinter,
@@ -194,8 +196,8 @@ export default function PrintersPage() {
               <h2>{t.addPrinterModel}</h2>
               <label>{t.vendor}<input value={modelForm.vendor} onChange={(e) => setModelForm({ ...modelForm, vendor: e.target.value })} /></label>
               <label>{t.modelName}<input required value={modelForm.name} onChange={(e) => setModelForm({ ...modelForm, name: e.target.value })} /></label>
-              <label>{t.printTechnology}<select value={modelForm.print_technology} onChange={(e) => setModelForm({ ...modelForm, print_technology: e.target.value })}><option value="laser">laser</option><option value="inkjet">inkjet</option><option value="other">other</option></select></label>
-              <label>{t.colorMode}<select value={modelForm.color_mode} onChange={(e) => setModelForm({ ...modelForm, color_mode: e.target.value })}><option value="mono">mono</option><option value="color">color</option></select></label>
+              <label>{t.printTechnology}<select value={modelForm.print_technology} onChange={(e) => setModelForm({ ...modelForm, print_technology: e.target.value })}><option value="laser">{formatPrintTechnology("laser", locale)}</option><option value="inkjet">{formatPrintTechnology("inkjet", locale)}</option><option value="other">{formatPrintTechnology("other", locale)}</option></select></label>
+              <label>{t.colorMode}<select value={modelForm.color_mode} onChange={(e) => setModelForm({ ...modelForm, color_mode: e.target.value })}><option value="mono">{formatColorMode("mono", locale)}</option><option value="color">{formatColorMode("color", locale)}</option></select></label>
               <label>{t.slots}<input min="1" type="number" value={modelForm.cartridge_slots_count} onChange={(e) => setModelForm({ ...modelForm, cartridge_slots_count: e.target.value })} /></label>
               <label>{t.notes}<textarea value={modelForm.notes} onChange={(e) => setModelForm({ ...modelForm, notes: e.target.value })} /></label>
               <button className="button" disabled={saving} type="submit">{t.save}</button>
