@@ -194,8 +194,8 @@ export default function PrintersPage() {
             ) : (
               filteredPrinters.map((printer) => (
                 <tr className={isArchivedPrinter(printer) ? "row-muted" : ""} key={printer.id}>
-                  <td>{dash(printerModelName.get(printer.printer_model_id))}</td>
-                  <td><Link className="text-link" href={`/printers/${printer.id}`}>{dash(printer.inventory_number)}</Link></td>
+                  <td><Link className="text-link" href={`/printers/${printer.id}`}>{printerModelName.get(printer.printer_model_id) ?? `Принтер #${printer.id}`}</Link></td>
+                  <td>{dash(printer.inventory_number)}</td>
                   <td>{dash(printer.serial_number)}</td>
                   <td>{dash(printer.ip_address)}</td>
                   <td>{printer.current_location_id ? dash(locationName.get(printer.current_location_id)) : dash(null)}</td>
