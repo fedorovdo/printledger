@@ -121,6 +121,20 @@ button {
   box-shadow: 0 1px 2px rgba(16, 24, 40, 0.08);
 }
 
+.topbar-actions,
+.user-block {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.user-block {
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
 .main {
   width: 100%;
   max-width: 1280px;
@@ -280,6 +294,22 @@ tr:last-child td {
 
 .panel {
   padding: 18px;
+}
+
+.auth-page {
+  display: grid;
+  min-height: calc(100vh - 150px);
+  place-items: center;
+}
+
+.auth-panel {
+  width: min(100%, 420px);
+}
+
+.auth-panel p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.5;
 }
 
 .panel.wide {

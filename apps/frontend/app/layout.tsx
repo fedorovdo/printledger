@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { AppShell } from "@/components/AppShell";
+import { AuthProvider } from "@/lib/auth";
 import { I18nProvider } from "@/lib/i18n";
 import "./globals.css";
 
@@ -17,7 +18,9 @@ export default function RootLayout({
     <html lang="ru" suppressHydrationWarning>
       <body>
         <I18nProvider>
-          <AppShell>{children}</AppShell>
+          <AuthProvider>
+            <AppShell>{children}</AppShell>
+          </AuthProvider>
         </I18nProvider>
       </body>
     </html>

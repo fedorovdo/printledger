@@ -3,6 +3,8 @@ const API_BASE_URL = (process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"
   "",
 );
 
+const AUTH_TOKEN_KEY = "printledger-access-token";
+
 type JsonBody = Record<string, unknown>;
 
 export class ApiError extends Error {
@@ -15,11 +17,43 @@ export class ApiError extends Error {
   }
 }
 
+export function getAuthToken() {
+  if (typeof window === "undefined") {
+    return null;
+  }
+  return window.localStorage.getItem(AUTH_TOKEN_KEY);
+}
+
+export function setAuthToken(token: string) {
+  window.localStorage.setItem(AUTH_TOKEN_KEY, token);
+  window.dispatchEvent(new Event("printledger-auth-changed"));
+}
+
+export function clearAuthToken() {
+  if (typeof window === "undefined") {
+    return;
+  }
+  window.localStorage.removeItem(AUTH_TOKEN_KEY);
+  window.dispatchEvent(new Event("printledger-auth-changed"));
+}
+
+function redirectToLogin(path: string) {
+  if (typeof window === "undefined" || path === "/api/auth/login") {
+    return;
+  }
+  clearAuthToken();
+  if (window.location.pathname !== "/login") {
+    window.location.href = "/login";
+  }
+}
+
 async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
+  const token = getAuthToken();
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...init,
     headers: {
       "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(init?.headers ?? {}),
     },
   });
@@ -41,6 +75,9 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
       }
     } catch {
       // Keep the HTTP status message.
+    }
+    if (response.status === 401) {
+      redirectToLogin(path);
     }
     throw new ApiError(message, response.status);
   }

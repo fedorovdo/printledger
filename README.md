@@ -19,6 +19,16 @@ This repository currently contains the early project foundation: FastAPI backend
 Copy-Item .env.example .env
 ```
 
+Edit `.env` before using the app in your local network. At minimum, change:
+
+```env
+APP_SECRET_KEY=change-me
+ADMIN_USERNAME=admin
+ADMIN_PASSWORD=admin123
+```
+
+Do not keep `ADMIN_PASSWORD=admin123` for real local-network use.
+
 2. Build services:
 
 ```powershell
@@ -63,6 +73,26 @@ http://localhost:3000
 - Database check: `http://localhost:8000/api/db-check`
 - PostgreSQL: `localhost:5432`
 
+## Authentication
+
+PrintLedger uses a simple local-network password login.
+
+- Configure the admin login in `.env` with `ADMIN_USERNAME` and `ADMIN_PASSWORD`.
+- Configure token signing with `APP_SECRET_KEY`.
+- Default examples in `.env.example` are `admin` / `admin123`; change them before using the system in a real LAN.
+- To change the password later, edit `.env` and restart the backend with `docker compose up -d`.
+- `GET /health` and `GET /api/db-check` are available without authorization for diagnostics.
+- Application API endpoints under `/api/*` require `Authorization: Bearer <token>`, except `/api/auth/login`, `/api/auth/logout`, and `/api/db-check`.
+
+Login API example:
+
+```powershell
+$body = @{ username = "admin"; password = "admin123" } | ConvertTo-Json
+$login = Invoke-RestMethod http://localhost:8000/api/auth/login -Method Post -ContentType "application/json" -Body $body
+$headers = @{ Authorization = "Bearer $($login.access_token)" }
+Invoke-RestMethod http://localhost:8000/api/auth/me -Headers $headers
+```
+
 ## Frontend MVP
 
 Open the app at `http://localhost:3000`.
@@ -74,10 +104,12 @@ Pages:
 - `http://localhost:3000/printers` - printer list with Active/In repair/Archive/All filters and collapsed quick-add forms for printer models and printers.
 - `http://localhost:3000/locations` - simple create/list sections for organizations, branches, and locations.
 - `http://localhost:3000/operations` - cartridge inventory transaction list.
+- `http://localhost:3000/about` - application version, backend/database status, environment, and documentation hint.
 
 The UI uses `NEXT_PUBLIC_API_URL` when provided and falls back to `http://localhost:8000`.
 RU is the default language; switch to EN from the top-right language control.
 Frontend enum labels are localized for RU/EN, while API payload values remain stable English enum values such as `new`, `refilled`, `laser`, and `written_off`.
+Open `http://localhost:3000/login` and sign in with the admin credentials from `.env`.
 
 Manual frontend checks:
 
@@ -87,6 +119,7 @@ Invoke-WebRequest -UseBasicParsing http://localhost:3000/cartridges
 Invoke-WebRequest -UseBasicParsing http://localhost:3000/printers
 Invoke-WebRequest -UseBasicParsing http://localhost:3000/locations
 Invoke-WebRequest -UseBasicParsing http://localhost:3000/operations
+Invoke-WebRequest -UseBasicParsing http://localhost:3000/about
 ```
 
 ### Frontend Workflows
