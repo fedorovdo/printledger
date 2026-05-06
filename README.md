@@ -117,8 +117,9 @@ Backups can also be managed from the authenticated web UI:
 http://localhost:3000/backup
 ```
 
-The web UI can list, create, download, and restore backup files. Restore is protected by an explicit `RESTORE` confirmation because it overwrites the current database.
+The web UI can list, create, download, restore, and delete backup files. Restore is protected by an explicit `RESTORE` confirmation because it overwrites the current database.
 Before any web restore, PrintLedger automatically creates a pre-restore emergency backup named `printledger_pre_restore_YYYY-MM-DD_HH-mm-ss.dump`.
+Backup deletion through the UI is irreversible. Keep at least the latest known-good backup before cleaning old files.
 
 PostgreSQL client tools inside the backend image must match the PostgreSQL server major version. The current Compose stack uses PostgreSQL 16, so `apps/backend/Dockerfile` installs `postgresql-client-16`. If the `postgres` image is later upgraded to another major version, update the backend client package at the same time before creating or restoring backups.
 
@@ -164,7 +165,7 @@ Pages:
 - `http://localhost:3000/printers` - printer list with Active/In repair/Archive/All filters and collapsed quick-add forms for printer models and printers.
 - `http://localhost:3000/locations` - simple create/list sections for organizations, branches, and locations.
 - `http://localhost:3000/operations` - cartridge inventory transaction list.
-- `http://localhost:3000/backup` - authenticated backup list, create backup action, and backup download.
+- `http://localhost:3000/backup` - authenticated backup list, create, download, restore, and delete actions.
 - `http://localhost:3000/about` - application version, backend/database status, environment, and documentation hint.
 
 The UI uses `NEXT_PUBLIC_API_BASE_URL`. In dev it points to `http://localhost:8000`; in production it is empty so the browser uses same-origin `/api` and `/health` through nginx.

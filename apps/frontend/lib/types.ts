@@ -150,3 +150,8 @@ export type BackupRestoreResult = {
   filename: string;
   pre_restore_backup: string;
 };
+
+export type BackupDeleteResult = {
+  status: string;
+  filename: string;
+};

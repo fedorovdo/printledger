@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.responses import FileResponse
 
-from app.schemas.backups import BackupFileRead, BackupRestoreRequest, BackupRestoreResult
+from app.schemas.backups import BackupDeleteResult, BackupFileRead, BackupRestoreRequest, BackupRestoreResult
 from app.services.backups import (
     create_database_backup,
+    delete_backup_file,
     get_backup_path,
     list_backup_files,
     restore_backup,
@@ -50,3 +51,8 @@ def post_restore_backup(
             detail="Confirmation must be RESTORE",
         )
     return restore_backup(filename)
+
+
+@router.delete("/{filename}", response_model=BackupDeleteResult)
+def delete_backup(filename: str, _: None = Depends(require_admin)) -> BackupDeleteResult:
+    return delete_backup_file(filename)

@@ -3,10 +3,10 @@
 import { useEffect, useState } from "react";
 
 import { EmptyRow, Message, PageHeader } from "@/components/Ui";
-import { downloadBlob, fetchJson, postJson } from "@/lib/api";
+import { deleteJson, downloadBlob, fetchJson, postJson } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { dash } from "@/lib/labels";
-import type { BackupFile, BackupRestoreResult } from "@/lib/types";
+import type { BackupDeleteResult, BackupFile, BackupRestoreResult } from "@/lib/types";
 
 function formatSize(bytes: number) {
   if (bytes < 1024) {
@@ -96,6 +96,30 @@ export default function BackupPage() {
     }
   }
 
+  async function deleteBackup(backup: BackupFile) {
+    const confirmMessage = `${t.confirmDeleteBackup} ${backup.filename}? ${t.actionCannotBeUndone}`;
+    if (!window.confirm(confirmMessage)) {
+      return;
+    }
+
+    setSaving(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      await deleteJson<BackupDeleteResult>(`/api/backups/${encodeURIComponent(backup.filename)}`);
+      setSuccess(t.backupDeleted);
+      if (selectedRestore?.filename === backup.filename) {
+        setSelectedRestore(null);
+        setRestoreConfirmation("");
+      }
+      await loadBackups();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unknown error");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   useEffect(() => {
     void loadBackups();
   }, []);
@@ -151,11 +175,12 @@ export default function BackupPage() {
               <th>{t.size}</th>
               <th>{t.download}</th>
               <th>{t.restore}</th>
+              <th>{t.delete}</th>
             </tr>
           </thead>
           <tbody>
             {backups.length === 0 ? (
-              <EmptyRow colSpan={5} />
+              <EmptyRow colSpan={6} />
             ) : (
               backups.map((backup) => (
                 <tr key={backup.filename}>
@@ -179,6 +204,11 @@ export default function BackupPage() {
                       type="button"
                     >
                       {t.restore}
+                    </button>
+                  </td>
+                  <td>
+                    <button className="button tiny danger" onClick={() => void deleteBackup(backup)} type="button">
+                      {t.delete}
                     </button>
                   </td>
                 </tr>

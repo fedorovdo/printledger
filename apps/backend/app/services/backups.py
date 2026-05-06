@@ -7,7 +7,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.engine import URL, make_url
 
 from app.core.config import settings
-from app.schemas.backups import BackupFileRead, BackupRestoreResult
+from app.schemas.backups import BackupDeleteResult, BackupFileRead, BackupRestoreResult
 
 ALLOWED_BACKUP_SUFFIXES = (".dump", ".backup", ".sql.gz")
 TRANSACTION_TIMEOUT_MARKERS = (
@@ -27,6 +27,9 @@ def get_backup_dir() -> Path:
 def validate_backup_filename(filename: str) -> bool:
     return (
         filename == Path(filename).name
+        and "/" not in filename
+        and "\\" not in filename
+        and ".." not in filename
         and not filename.startswith(".")
         and filename.endswith(ALLOWED_BACKUP_SUFFIXES)
     )
@@ -138,6 +141,18 @@ def create_backup(prefix: str = "printledger_backup") -> BackupFileRead:
 
 def create_database_backup() -> BackupFileRead:
     return create_backup()
+
+
+def delete_backup_file(filename: str) -> BackupDeleteResult:
+    backup_path = get_backup_path(filename)
+    try:
+        backup_path.unlink()
+    except OSError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to delete backup file",
+        ) from exc
+    return BackupDeleteResult(status="deleted", filename=backup_path.name)
 
 
 def _sql_literal(value: str) -> str:

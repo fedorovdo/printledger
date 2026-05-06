@@ -18,3 +18,8 @@ class BackupRestoreResult(BaseModel):
     status: str
     filename: str
     pre_restore_backup: str
+
+
+class BackupDeleteResult(BaseModel):
+    status: str
+    filename: str
