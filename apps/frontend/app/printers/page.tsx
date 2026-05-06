@@ -15,7 +15,7 @@ import {
   isRepairPrinter,
   labelPrinterStatus,
 } from "@/lib/labels";
-import type { Location, Printer, PrinterModel } from "@/lib/types";
+import type { Branch, Location, Organization, Printer, PrinterModel } from "@/lib/types";
 
 const initialPrinterModel = {
   vendor: "",
@@ -44,6 +44,8 @@ export default function PrintersPage() {
   const [printers, setPrinters] = useState<Printer[]>([]);
   const [printerModels, setPrinterModels] = useState<PrinterModel[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
+  const [organizations, setOrganizations] = useState<Organization[]>([]);
+  const [branches, setBranches] = useState<Branch[]>([]);
   const [modelForm, setModelForm] = useState(initialPrinterModel);
   const [printerForm, setPrinterForm] = useState(initialPrinter);
   const [editingPrinterModelId, setEditingPrinterModelId] = useState<number | null>(null);
@@ -64,6 +66,22 @@ export default function PrintersPage() {
   const locationName = useMemo(
     () => new Map(locations.map((location) => [location.id, location.display_name])),
     [locations],
+  );
+  const activeOrganizationIds = useMemo(
+    () => new Set(organizations.filter((org) => org.is_active).map((org) => org.id)),
+    [organizations],
+  );
+  const activeBranchIds = useMemo(
+    () => new Set(branches.filter((branch) => branch.is_active && activeOrganizationIds.has(branch.organization_id)).map((branch) => branch.id)),
+    [activeOrganizationIds, branches],
+  );
+  const activeLocations = useMemo(
+    () => locations.filter(
+      (location) => location.is_active
+        && activeOrganizationIds.has(location.organization_id)
+        && (!location.branch_id || activeBranchIds.has(location.branch_id)),
+    ),
+    [activeBranchIds, activeOrganizationIds, locations],
   );
   const printerCounts = useMemo(() => ({
     active: printers.filter(isActivePrinter).length,
@@ -116,14 +134,18 @@ export default function PrintersPage() {
     setLoading(true);
     setError(null);
     try {
-      const [printerData, modelData, locationData] = await Promise.all([
+      const [printerData, modelData, locationData, orgData, branchData] = await Promise.all([
         fetchJson<Printer[]>("/api/printers?limit=500"),
         fetchJson<PrinterModel[]>("/api/printer-models?limit=500"),
         fetchJson<Location[]>("/api/locations?limit=500"),
+        fetchJson<Organization[]>("/api/organizations?limit=500"),
+        fetchJson<Branch[]>("/api/branches?limit=500"),
       ]);
       setPrinters(printerData);
       setPrinterModels(modelData);
       setLocations(locationData);
+      setOrganizations(orgData);
+      setBranches(branchData);
       return printerData;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
@@ -413,7 +435,7 @@ export default function PrintersPage() {
               <label>{t.inventoryNumber}<input value={printerForm.inventory_number} onChange={(e) => setPrinterForm({ ...printerForm, inventory_number: e.target.value })} /></label>
               <label>{t.ipAddress}<input value={printerForm.ip_address} onChange={(e) => setPrinterForm({ ...printerForm, ip_address: e.target.value })} /></label>
               <label>{t.macAddress}<input value={printerForm.mac_address} onChange={(e) => setPrinterForm({ ...printerForm, mac_address: e.target.value })} /></label>
-              <label>{t.location}<select value={printerForm.current_location_id} onChange={(e) => setPrinterForm({ ...printerForm, current_location_id: e.target.value })}><option value=""></option>{locations.map((location) => <option key={location.id} value={location.id}>{location.display_name}</option>)}</select></label>
+              <label>{t.location}<select value={printerForm.current_location_id} onChange={(e) => setPrinterForm({ ...printerForm, current_location_id: e.target.value })}><option value=""></option>{activeLocations.map((location) => <option key={location.id} value={location.id}>{location.display_name}</option>)}</select></label>
               <label>{t.notes}<textarea value={printerForm.notes} onChange={(e) => setPrinterForm({ ...printerForm, notes: e.target.value })} /></label>
               <button className="button" disabled={saving} type="submit">{t.save}</button>
             </form>

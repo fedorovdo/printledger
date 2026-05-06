@@ -18,6 +18,7 @@ from app.models import (
     Printer,
     PrinterCartridgeHistory,
     PrinterInstalledCartridge,
+    PrinterLocationHistory,
     PrinterModel,
     PrinterModelCompatibleCartridge,
 )
@@ -157,6 +158,40 @@ def _ensure_cartridge_model_can_be_deleted(db: Session, cartridge_model_id: int)
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Нельзя удалить модель картриджа: она используется в истории или остатках. Модель используется. Ее нельзя удалить, но можно деактивировать.",
+        )
+
+
+def _ensure_organization_can_be_deleted(db: Session, organization_id: int) -> None:
+    if _relation_exists(db, Branch, Branch.organization_id, organization_id) or _relation_exists(
+        db, Location, Location.organization_id, organization_id
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Нельзя удалить организацию: она используется. Запись используется. Ее нельзя удалить, но можно деактивировать.",
+        )
+
+
+def _ensure_branch_can_be_deleted(db: Session, branch_id: int) -> None:
+    if _relation_exists(db, Location, Location.branch_id, branch_id):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Нельзя удалить филиал: он используется. Запись используется. Ее нельзя удалить, но можно деактивировать.",
+        )
+
+
+def _ensure_location_can_be_deleted(db: Session, location_id: int) -> None:
+    is_used = any(
+        (
+            _relation_exists(db, Printer, Printer.current_location_id, location_id),
+            _relation_exists(db, PrinterLocationHistory, PrinterLocationHistory.from_location_id, location_id),
+            _relation_exists(db, PrinterLocationHistory, PrinterLocationHistory.to_location_id, location_id),
+            _relation_exists(db, CartridgeInventoryTransaction, CartridgeInventoryTransaction.location_id, location_id),
+        )
+    )
+    if is_used:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Нельзя удалить локацию: она используется. Запись используется. Ее нельзя удалить, но можно деактивировать.",
         )
 
 
@@ -384,10 +419,10 @@ def patch_organization(
 
 
 @router.delete("/organizations/{item_id}", response_model=OrganizationRead, tags=["organizations"])
-def delete_organization(item_id: int, db: Session = Depends(get_db)) -> Organization:
+def delete_organization(item_id: int, db: Session = Depends(get_db)) -> dict[str, Any]:
     item = _get_or_404(db, Organization, item_id)
-    item.is_active = False
-    return _commit_or_409(db, item)
+    _ensure_organization_can_be_deleted(db, item.id)
+    return _delete_or_409(db, item)
 
 
 @router.get("/branches", response_model=list[BranchRead], tags=["branches"])
@@ -427,10 +462,10 @@ def patch_branch(item_id: int, payload: BranchUpdate, db: Session = Depends(get_
 
 
 @router.delete("/branches/{item_id}", response_model=BranchRead, tags=["branches"])
-def delete_branch(item_id: int, db: Session = Depends(get_db)) -> Branch:
+def delete_branch(item_id: int, db: Session = Depends(get_db)) -> dict[str, Any]:
     item = _get_or_404(db, Branch, item_id)
-    item.is_active = False
-    return _commit_or_409(db, item)
+    _ensure_branch_can_be_deleted(db, item.id)
+    return _delete_or_409(db, item)
 
 
 @router.get("/locations", response_model=list[LocationRead], tags=["locations"])
@@ -482,10 +517,10 @@ def patch_location(
 
 
 @router.delete("/locations/{item_id}", response_model=LocationRead, tags=["locations"])
-def delete_location(item_id: int, db: Session = Depends(get_db)) -> Location:
+def delete_location(item_id: int, db: Session = Depends(get_db)) -> dict[str, Any]:
     item = _get_or_404(db, Location, item_id)
-    item.is_active = False
-    return _commit_or_409(db, item)
+    _ensure_location_can_be_deleted(db, item.id)
+    return _delete_or_409(db, item)
 
 
 @router.get("/printer-models", response_model=list[PrinterModelRead], tags=["printer-models"])

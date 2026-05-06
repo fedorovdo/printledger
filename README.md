@@ -361,6 +361,18 @@ Printer and cartridge model catalogs can be managed from the frontend:
 
 No database migrations are used for this stage. Existing linked data is preserved; deleting a linked model should be handled through deactivation or a dedicated cleanup workflow.
 
+## Location Directory Management
+
+Organizations, branches, and locations are managed on `/locations`.
+
+- Records can be edited with `PATCH /api/organizations/{id}`, `PATCH /api/branches/{id}`, and `PATCH /api/locations/{id}`.
+- Unused records can be physically deleted.
+- Linked records are protected and return `409 Conflict`. If a record is used, deactivate it with `PATCH ... { "is_active": false }` instead of deleting it.
+- Deactivated organizations, branches, and locations remain available for history, but inactive locations are hidden from working printer location selects.
+- Printer creation and printer movement selects show only active locations whose organization and branch are also active.
+
+No database migrations are used for this stage because `is_active` already exists on these tables.
+
 ## Cartridge Inventory API
 
 The cartridge inventory MVP records stock movements in `cartridge_inventory_transactions`.

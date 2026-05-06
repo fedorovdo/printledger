@@ -22,9 +22,11 @@ import {
   removeActionFlags,
 } from "@/lib/labels";
 import type {
+  Branch,
   CartridgeModel,
   InstalledCartridge,
   Location,
+  Organization,
   Printer,
   PrinterArchiveHistory,
   PrinterCartridgeHistory,
@@ -40,6 +42,8 @@ export default function PrinterCardPage() {
   const [printer, setPrinter] = useState<Printer | null>(null);
   const [printerModels, setPrinterModels] = useState<PrinterModel[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
+  const [organizations, setOrganizations] = useState<Organization[]>([]);
+  const [branches, setBranches] = useState<Branch[]>([]);
   const [cartridgeModels, setCartridgeModels] = useState<CartridgeModel[]>([]);
   const [installed, setInstalled] = useState<InstalledCartridge[]>([]);
   const [cartridgeHistory, setCartridgeHistory] = useState<PrinterCartridgeHistory[]>([]);
@@ -65,6 +69,22 @@ export default function PrinterCardPage() {
     () => new Map(locations.map((location) => [location.id, location.display_name])),
     [locations],
   );
+  const activeOrganizationIds = useMemo(
+    () => new Set(organizations.filter((org) => org.is_active).map((org) => org.id)),
+    [organizations],
+  );
+  const activeBranchIds = useMemo(
+    () => new Set(branches.filter((branch) => branch.is_active && activeOrganizationIds.has(branch.organization_id)).map((branch) => branch.id)),
+    [activeOrganizationIds, branches],
+  );
+  const activeLocations = useMemo(
+    () => locations.filter(
+      (location) => location.is_active
+        && activeOrganizationIds.has(location.organization_id)
+        && (!location.branch_id || activeBranchIds.has(location.branch_id)),
+    ),
+    [activeBranchIds, activeOrganizationIds, locations],
+  );
   const cartridgeModelName = useMemo(
     () => new Map(cartridgeModels.map((model) => [model.id, model.model_name])),
     [cartridgeModels],
@@ -82,6 +102,8 @@ export default function PrinterCardPage() {
         printerData,
         printerModelData,
         locationData,
+        orgData,
+        branchData,
         cartridgeModelData,
         installedData,
         cartridgeHistoryData,
@@ -92,6 +114,8 @@ export default function PrinterCardPage() {
         fetchJson<Printer>(`/api/printers/${printerId}`),
         fetchJson<PrinterModel[]>("/api/printer-models"),
         fetchJson<Location[]>("/api/locations"),
+        fetchJson<Organization[]>("/api/organizations"),
+        fetchJson<Branch[]>("/api/branches"),
         fetchJson<CartridgeModel[]>("/api/cartridge-models"),
         fetchJson<InstalledCartridge[]>(`/api/printers/${printerId}/installed-cartridges`),
         fetchJson<PrinterCartridgeHistory[]>(`/api/printers/${printerId}/cartridge-history`),
@@ -102,6 +126,8 @@ export default function PrinterCardPage() {
       setPrinter(printerData);
       setPrinterModels(printerModelData);
       setLocations(locationData);
+      setOrganizations(orgData);
+      setBranches(branchData);
       setCartridgeModels(cartridgeModelData);
       setInstalled(installedData);
       setCartridgeHistory(cartridgeHistoryData);
@@ -236,7 +262,7 @@ export default function PrinterCardPage() {
           setMoveForm({ to_location_id: "", reason: "", notes: "" });
         }, t.printerMoved)}>
           <h2>{t.movePrinter}</h2>
-          <label>{t.toLocation}<select required value={moveForm.to_location_id} onChange={(e) => setMoveForm({ ...moveForm, to_location_id: e.target.value })}><option value=""></option>{locations.map((location) => <option key={location.id} value={location.id}>{location.display_name}</option>)}</select></label>
+          <label>{t.toLocation}<select required value={moveForm.to_location_id} onChange={(e) => setMoveForm({ ...moveForm, to_location_id: e.target.value })}><option value=""></option>{activeLocations.map((location) => <option key={location.id} value={location.id}>{location.display_name}</option>)}</select></label>
           <label>{t.reason}<input value={moveForm.reason} onChange={(e) => setMoveForm({ ...moveForm, reason: e.target.value })} /></label>
           <label>{t.notes}<textarea value={moveForm.notes} onChange={(e) => setMoveForm({ ...moveForm, notes: e.target.value })} /></label>
           <button className="button" disabled={saving || isLifecycleLocked} type="submit">{t.save}</button>
