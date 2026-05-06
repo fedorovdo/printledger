@@ -51,19 +51,24 @@ def _build_usage_row(
     current_stock_total = stock_new + stock_refilled
     avg_monthly_usage = usage_in_period / (period_days / 30)
     months_left = current_stock_total / avg_monthly_usage if avg_monthly_usage > 0 else None
+    recommended_purchase_1m = max(0, ceil(avg_monthly_usage - current_stock_total))
+    recommended_purchase_3m = max(0, ceil(avg_monthly_usage * 3 - current_stock_total))
     return CartridgeUsageRow(
         cartridge_model_id=model.id,
         model_name=model.model_name,
         purchase_sku=model.purchase_sku,
         min_stock_level=model.min_stock_level,
+        is_active=model.is_active,
         current_stock_new=stock_new,
         current_stock_refilled=stock_refilled,
         current_stock_total=current_stock_total,
         usage_in_period=usage_in_period,
         avg_monthly_usage=avg_monthly_usage,
         months_of_stock_left=months_left,
-        recommended_purchase_1m=max(0, ceil(avg_monthly_usage - current_stock_total)),
-        recommended_purchase_3m=max(0, ceil(avg_monthly_usage * 3 - current_stock_total)),
+        recommended_purchase_1m=recommended_purchase_1m,
+        recommended_purchase_3m=recommended_purchase_3m,
+        needs_purchase_1m=recommended_purchase_1m > 0,
+        needs_purchase_3m=recommended_purchase_3m > 0,
     )
 
 
@@ -71,6 +76,7 @@ def get_cartridge_usage_analytics(
     db: Session,
     days: int = 30,
     cartridge_model_id: int | None = None,
+    include_inactive: bool = False,
 ) -> CartridgeUsageAnalyticsRead:
     if days not in {30, 90, 365}:
         raise HTTPException(
@@ -87,6 +93,8 @@ def get_cartridge_usage_analytics(
     models_query = select(CartridgeModel).order_by(CartridgeModel.model_name)
     if cartridge_model_id is not None:
         models_query = models_query.where(CartridgeModel.id == cartridge_model_id)
+    elif not include_inactive:
+        models_query = models_query.where(CartridgeModel.is_active.is_(True))
     models = db.scalars(models_query).all()
 
     stock_by_model = {
@@ -138,6 +146,9 @@ def get_cartridge_usage_analytics(
         period_days=days,
         total_usage=sum(row.usage_in_period for row in rows),
         total_current_stock=sum(row.current_stock_total for row in rows),
+        total_recommended_purchase_1m=sum(row.recommended_purchase_1m for row in rows),
+        total_recommended_purchase_3m=sum(row.recommended_purchase_3m for row in rows),
+        models_needing_purchase_3m=sum(1 for row in rows if row.needs_purchase_3m),
         rows=rows,
         monthly_breakdown=monthly_breakdown,
     )

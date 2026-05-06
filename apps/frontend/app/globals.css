@@ -319,6 +319,29 @@ tr:last-child td {
   line-height: 1.45;
 }
 
+.analytics-hint {
+  margin: 0 0 14px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.checkbox-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.checkbox-label input {
+  width: 16px;
+  height: 16px;
+}
+
 .auth-page {
   display: grid;
   min-height: calc(100vh - 150px);

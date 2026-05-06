@@ -182,6 +182,8 @@ The dashboard includes cartridge usage analytics for purchasing planning.
 - Usage is calculated from cartridge inventory transactions: `install` and `write_off` count as consumption.
 - Returns current warehouse stock, average monthly usage, estimated months of stock left, and recommended purchases for 1 and 3 months.
 - When a cartridge model is selected, the response also includes monthly usage breakdown for the selected period.
+- Inactive cartridge models are hidden by default; use `include_inactive=true` or the dashboard checkbox to include them.
+- The dashboard table highlights models that need purchasing for the 3-month target and can export the current analytics view to CSV for Excel.
 
 Manual frontend checks:
 

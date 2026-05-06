@@ -12,6 +12,7 @@ router = APIRouter(prefix="/api/analytics", tags=["analytics"])
 def get_cartridge_usage(
     days: int = Query(default=30),
     cartridge_model_id: int | None = None,
+    include_inactive: bool = False,
     db: Session = Depends(get_db),
 ) -> CartridgeUsageAnalyticsRead:
-    return get_cartridge_usage_analytics(db, days, cartridge_model_id)
+    return get_cartridge_usage_analytics(db, days, cartridge_model_id, include_inactive)

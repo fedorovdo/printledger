@@ -161,6 +161,7 @@ export type CartridgeUsageAnalyticsRow = {
   model_name: string;
   purchase_sku: string | null;
   min_stock_level: number;
+  is_active: boolean;
   current_stock_new: number;
   current_stock_refilled: number;
   current_stock_total: number;
@@ -169,6 +170,8 @@ export type CartridgeUsageAnalyticsRow = {
   months_of_stock_left: number | null;
   recommended_purchase_1m: number;
   recommended_purchase_3m: number;
+  needs_purchase_1m: boolean;
+  needs_purchase_3m: boolean;
 };
 
 export type CartridgeUsageMonthlyBreakdown = {
@@ -180,6 +183,9 @@ export type CartridgeUsageAnalytics = {
   period_days: number;
   total_usage: number;
   total_current_stock: number;
+  total_recommended_purchase_1m: number;
+  total_recommended_purchase_3m: number;
+  models_needing_purchase_3m: number;
   rows: CartridgeUsageAnalyticsRow[];
   monthly_breakdown: CartridgeUsageMonthlyBreakdown[] | null;
 };
