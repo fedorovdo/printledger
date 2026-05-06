@@ -4,7 +4,7 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 
 import { EmptyRow, Message, PageHeader } from "@/components/Ui";
-import { compactBody, fetchJson, postJson } from "@/lib/api";
+import { compactBody, deleteJson, fetchJson, patchJson, postJson } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import {
   dash,
@@ -45,6 +45,7 @@ export default function PrintersPage() {
   const [locations, setLocations] = useState<Location[]>([]);
   const [modelForm, setModelForm] = useState(initialPrinterModel);
   const [printerForm, setPrinterForm] = useState(initialPrinter);
+  const [editingPrinterModelId, setEditingPrinterModelId] = useState<number | null>(null);
   const [printerFilter, setPrinterFilter] = useState<PrinterFilter>("active");
   const [showModelForm, setShowModelForm] = useState(false);
   const [showPrinterForm, setShowPrinterForm] = useState(false);
@@ -90,9 +91,6 @@ export default function PrintersPage() {
   const modelCreatedMessage = locale === "ru"
     ? "Модель принтера создана. Теперь добавьте конкретный принтер через кнопку \"+ Принтер\"."
     : "Printer model created. Now add a physical printer using the \"+ Printer\" button.";
-  const modelCatalogHint = locale === "ru"
-    ? "Это справочник модели. После создания модели добавьте конкретный принтер с инвентарным номером."
-    : "This is a model catalog entry. After creating it, add a physical printer with an inventory number.";
 
   async function loadData() {
     setLoading(true);
@@ -138,6 +136,46 @@ export default function PrintersPage() {
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function startEditPrinterModel(model: PrinterModel) {
+    setEditingPrinterModelId(model.id);
+    setModelForm({
+      vendor: model.vendor ?? "",
+      name: model.name,
+      print_technology: model.print_technology,
+      color_mode: model.color_mode,
+      cartridge_slots_count: String(model.cartridge_slots_count),
+      notes: model.notes ?? "",
+    });
+    setShowModelForm(true);
+    setError(null);
+    setSuccess(null);
+    setInfo(null);
+  }
+
+  function cancelEditPrinterModel() {
+    setEditingPrinterModelId(null);
+    setModelForm(initialPrinterModel);
+  }
+
+  async function deletePrinterModel(model: PrinterModel) {
+    if (!window.confirm(`${t.delete}: ${model.name}?`)) {
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    setSuccess(null);
+    setInfo(null);
+    try {
+      await deleteJson(`/api/printer-models/${model.id}`);
+      setSuccess(t.modelDeleted);
+      await loadData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t.linkedModelDeleteBlocked);
     } finally {
       setSaving(false);
     }
@@ -202,63 +240,81 @@ export default function PrintersPage() {
         </table>
       </div>
 
-      <section className="catalog-section">
-        <h2>{locale === "ru" ? "Модели принтеров" : "Printer models"}</h2>
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>{t.vendor}</th>
-                <th>{t.modelName}</th>
-                <th>{t.printTechnology}</th>
-                <th>{t.colorMode}</th>
-                <th>{locale === "ru" ? "Активна" : "Active"}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {printerModels.length === 0 ? (
-                <EmptyRow colSpan={5} />
-              ) : (
-                printerModels.map((model) => (
-                  <tr key={model.id}>
-                    <td>{dash(model.vendor)}</td>
-                    <td>{model.name}</td>
-                    <td>{formatPrintTechnology(model.print_technology, locale)}</td>
-                    <td>{formatColorMode(model.color_mode, locale)}</td>
-                    <td>{model.is_active ? t.yes : t.no}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
       {(showModelForm || showPrinterForm) && (
         <div className="form-grid">
           {showModelForm && (
-            <form className="panel" onSubmit={(event) => submitForm(event, async () => {
-              const createdModel = await postJson<PrinterModel>("/api/printer-models", compactBody({
-                ...modelForm,
-                cartridge_slots_count: Number(modelForm.cartridge_slots_count),
-              }));
-              setModelForm(initialPrinterModel);
-              setShowModelForm(false);
-              setShowPrinterForm(true);
-              setPrinterForm({ ...initialPrinter, printer_model_id: String(createdModel.id) });
-              await loadData();
-            }, modelCreatedMessage)}>
-              <h2>{t.addPrinterModel}</h2>
-              <p className="muted">{modelCatalogHint}</p>
-              <label>{t.vendor}<input list="printer-vendor-suggestions" value={modelForm.vendor} onChange={(e) => setModelForm({ ...modelForm, vendor: e.target.value })} /></label>
-              <datalist id="printer-vendor-suggestions">{vendorSuggestions.map((vendor) => <option key={vendor} value={vendor} />)}</datalist>
-              <label>{t.modelName}<input required value={modelForm.name} onChange={(e) => setModelForm({ ...modelForm, name: e.target.value })} /></label>
-              <label>{t.printTechnology}<select value={modelForm.print_technology} onChange={(e) => setModelForm({ ...modelForm, print_technology: e.target.value })}><option value="laser">{formatPrintTechnology("laser", locale)}</option><option value="inkjet">{formatPrintTechnology("inkjet", locale)}</option><option value="other">{formatPrintTechnology("other", locale)}</option></select></label>
-              <label>{t.colorMode}<select value={modelForm.color_mode} onChange={(e) => setModelForm({ ...modelForm, color_mode: e.target.value })}><option value="mono">{formatColorMode("mono", locale)}</option><option value="color">{formatColorMode("color", locale)}</option></select></label>
-              <label>{t.slots}<input min="1" type="number" value={modelForm.cartridge_slots_count} onChange={(e) => setModelForm({ ...modelForm, cartridge_slots_count: e.target.value })} /></label>
-              <label>{t.notes}<textarea value={modelForm.notes} onChange={(e) => setModelForm({ ...modelForm, notes: e.target.value })} /></label>
-              <button className="button" disabled={saving} type="submit">{t.save}</button>
-            </form>
+            <div className="model-management">
+              <form className="panel" onSubmit={(event) => submitForm(event, async () => {
+                if (editingPrinterModelId) {
+                  await patchJson<PrinterModel>(`/api/printer-models/${editingPrinterModelId}`, compactBody({
+                    ...modelForm,
+                    cartridge_slots_count: Number(modelForm.cartridge_slots_count),
+                  }));
+                  setEditingPrinterModelId(null);
+                  setModelForm(initialPrinterModel);
+                  await loadData();
+                  return;
+                }
+                const createdModel = await postJson<PrinterModel>("/api/printer-models", compactBody({
+                  ...modelForm,
+                  cartridge_slots_count: Number(modelForm.cartridge_slots_count),
+                }));
+                setModelForm(initialPrinterModel);
+                setShowModelForm(false);
+                setShowPrinterForm(true);
+                setPrinterForm({ ...initialPrinter, printer_model_id: String(createdModel.id) });
+                await loadData();
+              }, editingPrinterModelId ? t.modelUpdated : modelCreatedMessage)}>
+                <h2>{editingPrinterModelId ? t.editPrinterModel : t.addPrinterModel}</h2>
+                <p className="muted">{t.printerModelCatalogHint}</p>
+                <label>{t.vendor}<input list="printer-vendor-suggestions" value={modelForm.vendor} onChange={(e) => setModelForm({ ...modelForm, vendor: e.target.value })} /></label>
+                <datalist id="printer-vendor-suggestions">{vendorSuggestions.map((vendor) => <option key={vendor} value={vendor} />)}</datalist>
+                <label>{t.modelName}<input required value={modelForm.name} onChange={(e) => setModelForm({ ...modelForm, name: e.target.value })} /></label>
+                <label>{t.printTechnology}<select value={modelForm.print_technology} onChange={(e) => setModelForm({ ...modelForm, print_technology: e.target.value })}><option value="laser">{formatPrintTechnology("laser", locale)}</option><option value="inkjet">{formatPrintTechnology("inkjet", locale)}</option><option value="other">{formatPrintTechnology("other", locale)}</option></select></label>
+                <label>{t.colorMode}<select value={modelForm.color_mode} onChange={(e) => setModelForm({ ...modelForm, color_mode: e.target.value })}><option value="mono">{formatColorMode("mono", locale)}</option><option value="color">{formatColorMode("color", locale)}</option></select></label>
+                <label>{t.slots}<input min="1" type="number" value={modelForm.cartridge_slots_count} onChange={(e) => setModelForm({ ...modelForm, cartridge_slots_count: e.target.value })} /></label>
+                <label>{t.notes}<textarea value={modelForm.notes} onChange={(e) => setModelForm({ ...modelForm, notes: e.target.value })} /></label>
+                <div className="inline-actions">
+                  <button className="button" disabled={saving} type="submit">{t.save}</button>
+                  {editingPrinterModelId && <button className="button secondary" onClick={cancelEditPrinterModel} type="button">{t.cancel}</button>}
+                </div>
+              </form>
+              <section className="catalog-section">
+                <h2>{t.printerModelCatalog}</h2>
+                <div className="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>{t.vendor}</th>
+                        <th>{t.modelName}</th>
+                        <th>{t.printTechnology}</th>
+                        <th>{t.colorMode}</th>
+                        <th>{t.active}</th>
+                        <th>{t.edit}</th>
+                        <th>{t.delete}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {printerModels.length === 0 ? (
+                        <EmptyRow colSpan={7} />
+                      ) : (
+                        printerModels.map((model) => (
+                          <tr key={model.id}>
+                            <td>{dash(model.vendor)}</td>
+                            <td>{model.name}</td>
+                            <td>{formatPrintTechnology(model.print_technology, locale)}</td>
+                            <td>{formatColorMode(model.color_mode, locale)}</td>
+                            <td>{model.is_active ? t.yes : t.no}</td>
+                            <td><button className="button tiny secondary" onClick={() => startEditPrinterModel(model)} type="button">{t.edit}</button></td>
+                            <td><button className="button tiny danger" disabled={saving} onClick={() => void deletePrinterModel(model)} type="button">{t.delete}</button></td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+            </div>
           )}
 
           {showPrinterForm && (

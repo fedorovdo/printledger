@@ -296,8 +296,17 @@ tr:last-child td {
   padding: 18px;
 }
 
+.model-management {
+  display: grid;
+  gap: 18px;
+}
+
 .catalog-section {
   margin-top: 22px;
+}
+
+.model-management .catalog-section {
+  margin-top: 0;
 }
 
 .catalog-section h2 {
@@ -468,6 +477,16 @@ textarea:focus {
 
 .button.secondary:hover {
   background: #f8fafc;
+}
+
+.button.danger {
+  border-color: #f3b3ad;
+  background: #ffffff;
+  color: var(--danger);
+}
+
+.button.danger:hover {
+  background: var(--danger-bg);
 }
 
 .button.tiny {

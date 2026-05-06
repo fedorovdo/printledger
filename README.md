@@ -346,6 +346,18 @@ Database-level unique indexes are intentionally not added yet because they could
 
 Manufacturer/vendor is currently a text field with frontend suggestions from existing values. A dedicated manufacturer directory can be added later if needed.
 
+## Safe Model Management
+
+Printer and cartridge model catalogs can be managed from the frontend:
+
+- `/printers` -> `+ Printer model` shows the printer model form and catalog table together.
+- `/cartridges` -> `+ Cartridge model` shows the cartridge model form and catalog table together.
+- Models can be edited with `PATCH /api/printer-models/{id}` and `PATCH /api/cartridge-models/{id}`.
+- Unsused models can be deleted.
+- Linked models are protected: deleting a printer model used by printers or compatibility rows returns `409 Conflict`; deleting a cartridge model used by inventory history, installed cartridges, cartridge history, or compatibility rows returns `409 Conflict`.
+
+No database migrations are used for this stage. Existing linked data is preserved; deleting a linked model should be handled later through deactivation or a dedicated cleanup workflow.
+
 ## Cartridge Inventory API
 
 The cartridge inventory MVP records stock movements in `cartridge_inventory_transactions`.

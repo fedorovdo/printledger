@@ -9,7 +9,18 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
-from app.models import Branch, CartridgeModel, Location, Organization, Printer, PrinterModel
+from app.models import (
+    Branch,
+    CartridgeInventoryTransaction,
+    CartridgeModel,
+    Location,
+    Organization,
+    Printer,
+    PrinterCartridgeHistory,
+    PrinterInstalledCartridge,
+    PrinterModel,
+    PrinterModelCompatibleCartridge,
+)
 from app.models.enums import PrinterStatus
 from app.schemas.catalog import (
     BranchCreate,
@@ -59,6 +70,20 @@ def _commit_or_409(db: Session, item: ModelT) -> ModelT:
     return item
 
 
+def _delete_or_409(db: Session, item: ModelT) -> dict[str, Any]:
+    item_data = {column.name: getattr(item, column.name) for column in item.__table__.columns}
+    db.delete(item)
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Database constraint violation",
+        ) from exc
+    return item_data
+
+
 def normalize_text(value: object) -> str:
     if value is None:
         return ""
@@ -97,6 +122,42 @@ def _merged_value(item: ModelT, updates: dict[str, Any], field: str) -> Any:
     if field in updates:
         return updates[field]
     return getattr(item, field)
+
+
+def _relation_exists(db: Session, model: type[ModelT], field: Any, value: int) -> bool:
+    return db.scalar(select(model.id).where(field == value).limit(1)) is not None
+
+
+def _ensure_printer_model_can_be_deleted(db: Session, printer_model_id: int) -> None:
+    if _relation_exists(db, Printer, Printer.printer_model_id, printer_model_id):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Нельзя удалить модель принтера: она используется в принтерах.",
+        )
+    if _relation_exists(
+        db,
+        PrinterModelCompatibleCartridge,
+        PrinterModelCompatibleCartridge.printer_model_id,
+        printer_model_id,
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Нельзя удалить модель принтера: она используется в совместимостях.",
+        )
+
+
+def _ensure_cartridge_model_can_be_deleted(db: Session, cartridge_model_id: int) -> None:
+    relation_checks = (
+        (CartridgeInventoryTransaction, CartridgeInventoryTransaction.cartridge_model_id),
+        (PrinterInstalledCartridge, PrinterInstalledCartridge.cartridge_model_id),
+        (PrinterCartridgeHistory, PrinterCartridgeHistory.cartridge_model_id),
+        (PrinterModelCompatibleCartridge, PrinterModelCompatibleCartridge.cartridge_model_id),
+    )
+    if any(_relation_exists(db, model, field, cartridge_model_id) for model, field in relation_checks):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Нельзя удалить модель картриджа: она используется в истории или остатках.",
+        )
 
 
 def _validate_organization_unique(
@@ -468,10 +529,10 @@ def patch_printer_model(
 
 
 @router.delete("/printer-models/{item_id}", response_model=PrinterModelRead, tags=["printer-models"])
-def delete_printer_model(item_id: int, db: Session = Depends(get_db)) -> PrinterModel:
+def delete_printer_model(item_id: int, db: Session = Depends(get_db)) -> dict[str, Any]:
     item = _get_or_404(db, PrinterModel, item_id)
-    item.is_active = False
-    return _commit_or_409(db, item)
+    _ensure_printer_model_can_be_deleted(db, item.id)
+    return _delete_or_409(db, item)
 
 
 @router.get("/cartridge-models", response_model=list[CartridgeModelRead], tags=["cartridge-models"])
@@ -528,10 +589,10 @@ def patch_cartridge_model(
     response_model=CartridgeModelRead,
     tags=["cartridge-models"],
 )
-def delete_cartridge_model(item_id: int, db: Session = Depends(get_db)) -> CartridgeModel:
+def delete_cartridge_model(item_id: int, db: Session = Depends(get_db)) -> dict[str, Any]:
     item = _get_or_404(db, CartridgeModel, item_id)
-    item.is_active = False
-    return _commit_or_409(db, item)
+    _ensure_cartridge_model_can_be_deleted(db, item.id)
+    return _delete_or_409(db, item)
 
 
 @router.get("/printers", response_model=list[PrinterRead], tags=["printers"])
