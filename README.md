@@ -173,6 +173,16 @@ RU is the default language; switch to EN from the top-right language control.
 Frontend enum labels are localized for RU/EN, while API payload values remain stable English enum values such as `new`, `refilled`, `laser`, and `written_off`.
 Open `http://localhost:3000/login` and sign in with the admin credentials from `.env`.
 
+### Dashboard Analytics
+
+The dashboard includes cartridge usage analytics for purchasing planning.
+
+- Backend endpoint: `GET /api/analytics/cartridge-usage?days=30|90|365`.
+- Optional filter: `cartridge_model_id`.
+- Usage is calculated from cartridge inventory transactions: `install` and `write_off` count as consumption.
+- Returns current warehouse stock, average monthly usage, estimated months of stock left, and recommended purchases for 1 and 3 months.
+- When a cartridge model is selected, the response also includes monthly usage breakdown for the selected period.
+
 Manual frontend checks:
 
 ```powershell

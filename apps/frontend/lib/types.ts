@@ -155,3 +155,31 @@ export type BackupDeleteResult = {
   status: string;
   filename: string;
 };
+
+export type CartridgeUsageAnalyticsRow = {
+  cartridge_model_id: number;
+  model_name: string;
+  purchase_sku: string | null;
+  min_stock_level: number;
+  current_stock_new: number;
+  current_stock_refilled: number;
+  current_stock_total: number;
+  usage_in_period: number;
+  avg_monthly_usage: number;
+  months_of_stock_left: number | null;
+  recommended_purchase_1m: number;
+  recommended_purchase_3m: number;
+};
+
+export type CartridgeUsageMonthlyBreakdown = {
+  month: string;
+  usage: number;
+};
+
+export type CartridgeUsageAnalytics = {
+  period_days: number;
+  total_usage: number;
+  total_current_stock: number;
+  rows: CartridgeUsageAnalyticsRow[];
+  monthly_breakdown: CartridgeUsageMonthlyBreakdown[] | null;
+};
