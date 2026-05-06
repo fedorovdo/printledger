@@ -1,3 +1,5 @@
+import re
+from collections.abc import Callable
 from typing import Any, TypeVar
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -57,6 +59,214 @@ def _commit_or_409(db: Session, item: ModelT) -> ModelT:
     return item
 
 
+def normalize_text(value: object) -> str:
+    if value is None:
+        return ""
+    return re.sub(r"\s+", " ", str(value).strip()).lower()
+
+
+def _raise_duplicate(detail: str) -> None:
+    raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=detail)
+
+
+def _has_duplicate(
+    db: Session,
+    model: type[ModelT],
+    predicate: Callable[[ModelT], bool],
+    exclude_id: int | None = None,
+) -> bool:
+    items = db.scalars(select(model)).all()
+    return any(
+        getattr(item, "id", None) != exclude_id and predicate(item)
+        for item in items
+    )
+
+
+def _ensure_unique(
+    db: Session,
+    model: type[ModelT],
+    predicate: Callable[[ModelT], bool],
+    detail: str,
+    exclude_id: int | None = None,
+) -> None:
+    if _has_duplicate(db, model, predicate, exclude_id):
+        _raise_duplicate(detail)
+
+
+def _merged_value(item: ModelT, updates: dict[str, Any], field: str) -> Any:
+    if field in updates:
+        return updates[field]
+    return getattr(item, field)
+
+
+def _validate_organization_unique(
+    db: Session,
+    name: str,
+    short_name: str | None,
+    exclude_id: int | None = None,
+) -> None:
+    normalized_name = normalize_text(name)
+    normalized_short_name = normalize_text(short_name)
+    _ensure_unique(
+        db,
+        Organization,
+        lambda item: normalize_text(item.name) == normalized_name,
+        "Организация уже существует.",
+        exclude_id,
+    )
+    if normalized_short_name:
+        _ensure_unique(
+            db,
+            Organization,
+            lambda item: normalize_text(item.short_name) == normalized_short_name,
+            "Организация с таким коротким именем уже существует.",
+            exclude_id,
+        )
+
+
+def _validate_branch_unique(
+    db: Session,
+    organization_id: int,
+    name: str,
+    exclude_id: int | None = None,
+) -> None:
+    normalized_name = normalize_text(name)
+    _ensure_unique(
+        db,
+        Branch,
+        lambda item: item.organization_id == organization_id
+        and normalize_text(item.name) == normalized_name,
+        "Филиал с таким названием уже существует в выбранной организации.",
+        exclude_id,
+    )
+
+
+def _validate_location_unique(
+    db: Session,
+    organization_id: int,
+    branch_id: int | None,
+    display_name: str,
+    department: str | None,
+    room: str | None,
+    exclude_id: int | None = None,
+) -> None:
+    normalized_display_name = normalize_text(display_name)
+    normalized_department = normalize_text(department)
+    normalized_room = normalize_text(room)
+    _ensure_unique(
+        db,
+        Location,
+        lambda item: item.organization_id == organization_id
+        and item.branch_id == branch_id
+        and normalize_text(item.display_name) == normalized_display_name,
+        "Такая локация уже существует.",
+        exclude_id,
+    )
+    if normalized_department or normalized_room:
+        _ensure_unique(
+            db,
+            Location,
+            lambda item: item.organization_id == organization_id
+            and item.branch_id == branch_id
+            and normalize_text(item.department) == normalized_department
+            and normalize_text(item.room) == normalized_room,
+            "Такая локация уже существует.",
+            exclude_id,
+        )
+
+
+def _validate_printer_model_unique(
+    db: Session,
+    _vendor: str | None,
+    name: str,
+    exclude_id: int | None = None,
+) -> None:
+    normalized_name = normalize_text(name)
+    _ensure_unique(
+        db,
+        PrinterModel,
+        lambda item: normalize_text(item.name) == normalized_name,
+        "Модель принтера уже существует.",
+        exclude_id,
+    )
+
+
+def _validate_cartridge_model_unique(
+    db: Session,
+    _vendor: str | None,
+    model_name: str,
+    purchase_sku: str | None,
+    exclude_id: int | None = None,
+) -> None:
+    normalized_model_name = normalize_text(model_name)
+    normalized_purchase_sku = normalize_text(purchase_sku)
+    _ensure_unique(
+        db,
+        CartridgeModel,
+        lambda item: normalize_text(item.model_name) == normalized_model_name,
+        "Модель картриджа уже существует.",
+        exclude_id,
+    )
+    if normalized_purchase_sku:
+        _ensure_unique(
+            db,
+            CartridgeModel,
+            lambda item: normalize_text(item.purchase_sku) == normalized_purchase_sku,
+            "Картридж с таким артикулом уже существует.",
+            exclude_id,
+        )
+
+
+def _validate_printer_unique(
+    db: Session,
+    inventory_number: str | None,
+    serial_number: str | None,
+    mac_address: str | None,
+    ip_address: str | None,
+    exclude_id: int | None = None,
+) -> None:
+    normalized_inventory_number = normalize_text(inventory_number)
+    normalized_serial_number = normalize_text(serial_number)
+    normalized_mac_address = normalize_text(mac_address)
+    normalized_ip_address = normalize_text(ip_address)
+
+    if normalized_inventory_number:
+        _ensure_unique(
+            db,
+            Printer,
+            lambda item: normalize_text(item.inventory_number) == normalized_inventory_number,
+            "Принтер с таким инвентарным номером уже существует.",
+            exclude_id,
+        )
+    if normalized_serial_number:
+        _ensure_unique(
+            db,
+            Printer,
+            lambda item: not item.is_archived
+            and normalize_text(item.serial_number) == normalized_serial_number,
+            "Принтер с таким серийным номером уже существует.",
+            exclude_id,
+        )
+    if normalized_mac_address:
+        _ensure_unique(
+            db,
+            Printer,
+            lambda item: not item.is_archived
+            and normalize_text(item.mac_address) == normalized_mac_address,
+            "Принтер с таким MAC-адресом уже существует.",
+            exclude_id,
+        )
+    if normalized_ip_address:
+        _ensure_unique(
+            db,
+            Printer,
+            lambda item: not item.is_archived
+            and normalize_text(item.ip_address) == normalized_ip_address,
+            "Принтер с таким IP-адресом уже существует.",
+            exclude_id,
+        )
+
+
 def list_items(db: Session, model: type[ModelT], offset: int = 0, limit: int = 100) -> list[ModelT]:
     limit = min(limit, 500)
     return list(db.scalars(select(model).offset(offset).limit(limit)).all())
@@ -93,6 +303,7 @@ def get_organization(item_id: int, db: Session = Depends(get_db)) -> Organizatio
     tags=["organizations"],
 )
 def post_organization(payload: OrganizationCreate, db: Session = Depends(get_db)) -> Organization:
+    _validate_organization_unique(db, payload.name, payload.short_name)
     return create_item(db, Organization, payload)
 
 
@@ -100,7 +311,15 @@ def post_organization(payload: OrganizationCreate, db: Session = Depends(get_db)
 def patch_organization(
     item_id: int, payload: OrganizationUpdate, db: Session = Depends(get_db)
 ) -> Organization:
-    return update_item(db, _get_or_404(db, Organization, item_id), payload)
+    item = _get_or_404(db, Organization, item_id)
+    updates = payload.model_dump(exclude_unset=True)
+    _validate_organization_unique(
+        db,
+        _merged_value(item, updates, "name"),
+        _merged_value(item, updates, "short_name"),
+        item.id,
+    )
+    return update_item(db, item, payload)
 
 
 @router.delete("/organizations/{item_id}", response_model=OrganizationRead, tags=["organizations"])
@@ -129,12 +348,21 @@ def get_branch(item_id: int, db: Session = Depends(get_db)) -> Branch:
     tags=["branches"],
 )
 def post_branch(payload: BranchCreate, db: Session = Depends(get_db)) -> Branch:
+    _validate_branch_unique(db, payload.organization_id, payload.name)
     return create_item(db, Branch, payload)
 
 
 @router.patch("/branches/{item_id}", response_model=BranchRead, tags=["branches"])
 def patch_branch(item_id: int, payload: BranchUpdate, db: Session = Depends(get_db)) -> Branch:
-    return update_item(db, _get_or_404(db, Branch, item_id), payload)
+    item = _get_or_404(db, Branch, item_id)
+    updates = payload.model_dump(exclude_unset=True)
+    _validate_branch_unique(
+        db,
+        _merged_value(item, updates, "organization_id"),
+        _merged_value(item, updates, "name"),
+        item.id,
+    )
+    return update_item(db, item, payload)
 
 
 @router.delete("/branches/{item_id}", response_model=BranchRead, tags=["branches"])
@@ -163,6 +391,14 @@ def get_location(item_id: int, db: Session = Depends(get_db)) -> Location:
     tags=["locations"],
 )
 def post_location(payload: LocationCreate, db: Session = Depends(get_db)) -> Location:
+    _validate_location_unique(
+        db,
+        payload.organization_id,
+        payload.branch_id,
+        payload.display_name,
+        payload.department,
+        payload.room,
+    )
     return create_item(db, Location, payload)
 
 
@@ -170,7 +406,18 @@ def post_location(payload: LocationCreate, db: Session = Depends(get_db)) -> Loc
 def patch_location(
     item_id: int, payload: LocationUpdate, db: Session = Depends(get_db)
 ) -> Location:
-    return update_item(db, _get_or_404(db, Location, item_id), payload)
+    item = _get_or_404(db, Location, item_id)
+    updates = payload.model_dump(exclude_unset=True)
+    _validate_location_unique(
+        db,
+        _merged_value(item, updates, "organization_id"),
+        _merged_value(item, updates, "branch_id"),
+        _merged_value(item, updates, "display_name"),
+        _merged_value(item, updates, "department"),
+        _merged_value(item, updates, "room"),
+        item.id,
+    )
+    return update_item(db, item, payload)
 
 
 @router.delete("/locations/{item_id}", response_model=LocationRead, tags=["locations"])
@@ -201,6 +448,7 @@ def get_printer_model(item_id: int, db: Session = Depends(get_db)) -> PrinterMod
 def post_printer_model(
     payload: PrinterModelCreate, db: Session = Depends(get_db)
 ) -> PrinterModel:
+    _validate_printer_model_unique(db, payload.vendor, payload.name)
     return create_item(db, PrinterModel, payload)
 
 
@@ -208,7 +456,15 @@ def post_printer_model(
 def patch_printer_model(
     item_id: int, payload: PrinterModelUpdate, db: Session = Depends(get_db)
 ) -> PrinterModel:
-    return update_item(db, _get_or_404(db, PrinterModel, item_id), payload)
+    item = _get_or_404(db, PrinterModel, item_id)
+    updates = payload.model_dump(exclude_unset=True)
+    _validate_printer_model_unique(
+        db,
+        _merged_value(item, updates, "vendor"),
+        _merged_value(item, updates, "name"),
+        item.id,
+    )
+    return update_item(db, item, payload)
 
 
 @router.delete("/printer-models/{item_id}", response_model=PrinterModelRead, tags=["printer-models"])
@@ -243,6 +499,7 @@ def get_cartridge_model(item_id: int, db: Session = Depends(get_db)) -> Cartridg
 def post_cartridge_model(
     payload: CartridgeModelCreate, db: Session = Depends(get_db)
 ) -> CartridgeModel:
+    _validate_cartridge_model_unique(db, payload.vendor, payload.model_name, payload.purchase_sku)
     return create_item(db, CartridgeModel, payload)
 
 
@@ -254,7 +511,16 @@ def post_cartridge_model(
 def patch_cartridge_model(
     item_id: int, payload: CartridgeModelUpdate, db: Session = Depends(get_db)
 ) -> CartridgeModel:
-    return update_item(db, _get_or_404(db, CartridgeModel, item_id), payload)
+    item = _get_or_404(db, CartridgeModel, item_id)
+    updates = payload.model_dump(exclude_unset=True)
+    _validate_cartridge_model_unique(
+        db,
+        _merged_value(item, updates, "vendor"),
+        _merged_value(item, updates, "model_name"),
+        _merged_value(item, updates, "purchase_sku"),
+        item.id,
+    )
+    return update_item(db, item, payload)
 
 
 @router.delete(
@@ -287,12 +553,29 @@ def get_printer(item_id: int, db: Session = Depends(get_db)) -> Printer:
     tags=["printers"],
 )
 def post_printer(payload: PrinterCreate, db: Session = Depends(get_db)) -> Printer:
+    _validate_printer_unique(
+        db,
+        payload.inventory_number,
+        payload.serial_number,
+        payload.mac_address,
+        payload.ip_address,
+    )
     return create_item(db, Printer, payload)
 
 
 @router.patch("/printers/{item_id}", response_model=PrinterRead, tags=["printers"])
 def patch_printer(item_id: int, payload: PrinterUpdate, db: Session = Depends(get_db)) -> Printer:
-    return update_item(db, _get_or_404(db, Printer, item_id), payload)
+    item = _get_or_404(db, Printer, item_id)
+    updates = payload.model_dump(exclude_unset=True)
+    _validate_printer_unique(
+        db,
+        _merged_value(item, updates, "inventory_number"),
+        _merged_value(item, updates, "serial_number"),
+        _merged_value(item, updates, "mac_address"),
+        _merged_value(item, updates, "ip_address"),
+        item.id,
+    )
+    return update_item(db, item, payload)
 
 
 @router.delete("/printers/{item_id}", response_model=PrinterRead, tags=["printers"])
@@ -301,4 +584,3 @@ def delete_printer(item_id: int, db: Session = Depends(get_db)) -> Printer:
     item.is_archived = True
     item.status = PrinterStatus.archived
     return _commit_or_409(db, item)
-

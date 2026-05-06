@@ -73,6 +73,20 @@ http://localhost:3000
 - Database check: `http://localhost:8000/api/db-check`
 - PostgreSQL: `localhost:5432`
 
+## Production Deployment
+
+For installation on a Linux server in a local network, use the separate production Compose file:
+
+```bash
+cp .env.prod.example .env
+docker compose -f docker-compose.prod.yml up -d --build
+docker compose -f docker-compose.prod.yml exec backend alembic upgrade head
+```
+
+Change `POSTGRES_PASSWORD`, `APP_SECRET_KEY`, and `ADMIN_PASSWORD` before starting production. The production stack exposes nginx on port `80`, so the app opens at `http://SERVER_IP`.
+
+Read the full Russian deployment guide in [docs/DEPLOY_RU.md](docs/DEPLOY_RU.md). Make a backup before every update.
+
 ## Authentication
 
 PrintLedger uses a simple local-network password login.
@@ -153,7 +167,7 @@ Pages:
 - `http://localhost:3000/backup` - authenticated backup list, create backup action, and backup download.
 - `http://localhost:3000/about` - application version, backend/database status, environment, and documentation hint.
 
-The UI uses `NEXT_PUBLIC_API_URL` when provided and falls back to `http://localhost:8000`.
+The UI uses `NEXT_PUBLIC_API_BASE_URL`. In dev it points to `http://localhost:8000`; in production it is empty so the browser uses same-origin `/api` and `/health` through nginx.
 RU is the default language; switch to EN from the top-right language control.
 Frontend enum labels are localized for RU/EN, while API payload values remain stable English enum values such as `new`, `refilled`, `laser`, and `written_off`.
 Open `http://localhost:3000/login` and sign in with the admin credentials from `.env`.
@@ -312,6 +326,25 @@ Minimal CRUD endpoints are available for core directories:
 - `DELETE /api/printers/{id}`
 
 `DELETE` endpoints currently perform soft deletion: directories are deactivated with `is_active=false`, and printers are archived with `is_archived=true`.
+
+## Duplicate Protection
+
+Stage 18 adds application-level duplicate validation for core directories. Stage 18.1 tightens model validation so cartridge models are unique by `model_name` regardless of vendor, and printer models are unique by `name` regardless of vendor. The backend normalizes text before comparison: trims spaces, collapses repeated spaces, and compares values without case sensitivity.
+
+Protected entities:
+
+- Printer models: `name`.
+- Cartridge models: `model_name`; `purchase_sku` is also unique when filled.
+- Organizations: `name`; `short_name` is also unique when filled.
+- Branches: `organization_id + name`.
+- Locations: `organization_id + branch_id + display_name`, plus department/room inside the same organization and branch.
+- Printers: `inventory_number`, `serial_number`, `mac_address`, and `ip_address` when filled. Inventory numbers are checked across all printers; the other identifiers are checked among non-archived printers.
+
+Duplicate create/update requests return `409 Conflict` with a readable Russian message. Existing duplicates are not deleted or changed automatically. If duplicates already exist in a database, clean them up manually later by editing, archiving, or consolidating records.
+
+Database-level unique indexes are intentionally not added yet because they could fail on existing duplicated data. They can be added later after data cleanup.
+
+Manufacturer/vendor is currently a text field with frontend suggestions from existing values. A dedicated manufacturer directory can be added later if needed.
 
 ## Cartridge Inventory API
 

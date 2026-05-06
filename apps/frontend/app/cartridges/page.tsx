@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 
 import { EmptyRow, Message, PageHeader } from "@/components/Ui";
@@ -39,13 +39,20 @@ export default function CartridgesPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
+  const vendorSuggestions = useMemo(
+    () => Array.from(
+      new Set(models.map((model) => model.vendor).filter((vendor): vendor is string => Boolean(vendor))),
+    ).sort(),
+    [models],
+  );
+
   async function loadData() {
     setLoading(true);
     setError(null);
     try {
       const [stockData, modelData] = await Promise.all([
         fetchJson<CartridgeStock[]>("/api/cartridge-stock"),
-        fetchJson<CartridgeModel[]>("/api/cartridge-models"),
+        fetchJson<CartridgeModel[]>("/api/cartridge-models?limit=500"),
       ]);
       setStock(stockData);
       setModels(modelData);
@@ -165,7 +172,8 @@ export default function CartridgesPage() {
           {showModelForm && (
             <form className="panel" onSubmit={createModel}>
               <h2>{t.addCartridgeModel}</h2>
-              <label>{t.vendor}<input value={modelForm.vendor} onChange={(e) => setModelForm({ ...modelForm, vendor: e.target.value })} /></label>
+              <label>{t.vendor}<input list="cartridge-vendor-suggestions" value={modelForm.vendor} onChange={(e) => setModelForm({ ...modelForm, vendor: e.target.value })} /></label>
+              <datalist id="cartridge-vendor-suggestions">{vendorSuggestions.map((vendor) => <option key={vendor} value={vendor} />)}</datalist>
               <label>{t.modelName}<input required value={modelForm.model_name} onChange={(e) => setModelForm({ ...modelForm, model_name: e.target.value })} /></label>
               <label>{t.sku}<input value={modelForm.purchase_sku} onChange={(e) => setModelForm({ ...modelForm, purchase_sku: e.target.value })} /></label>
               <label>{t.cartridgeType}<select value={modelForm.cartridge_type} onChange={(e) => setModelForm({ ...modelForm, cartridge_type: e.target.value })}><option value="toner">{formatCartridgeType("toner", locale)}</option><option value="ink">{formatCartridgeType("ink", locale)}</option><option value="other">{formatCartridgeType("other", locale)}</option></select></label>

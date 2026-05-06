@@ -52,6 +52,7 @@ export default function PrintersPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
 
   const printerModelName = useMemo(
     () => new Map(printerModels.map((model) => [model.id, model.name])),
@@ -80,20 +81,35 @@ export default function PrintersPage() {
     return printers;
   }, [printerFilter, printers]);
 
+  const vendorSuggestions = useMemo(
+    () => Array.from(
+      new Set(printerModels.map((model) => model.vendor).filter((vendor): vendor is string => Boolean(vendor))),
+    ).sort(),
+    [printerModels],
+  );
+  const modelCreatedMessage = locale === "ru"
+    ? "Модель принтера создана. Теперь добавьте конкретный принтер через кнопку \"+ Принтер\"."
+    : "Printer model created. Now add a physical printer using the \"+ Printer\" button.";
+  const modelCatalogHint = locale === "ru"
+    ? "Это справочник модели. После создания модели добавьте конкретный принтер с инвентарным номером."
+    : "This is a model catalog entry. After creating it, add a physical printer with an inventory number.";
+
   async function loadData() {
     setLoading(true);
     setError(null);
     try {
       const [printerData, modelData, locationData] = await Promise.all([
-        fetchJson<Printer[]>("/api/printers"),
-        fetchJson<PrinterModel[]>("/api/printer-models"),
-        fetchJson<Location[]>("/api/locations"),
+        fetchJson<Printer[]>("/api/printers?limit=500"),
+        fetchJson<PrinterModel[]>("/api/printer-models?limit=500"),
+        fetchJson<Location[]>("/api/locations?limit=500"),
       ]);
       setPrinters(printerData);
       setPrinterModels(modelData);
       setLocations(locationData);
+      return printerData;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
+      return [];
     } finally {
       setLoading(false);
     }
@@ -105,16 +121,21 @@ export default function PrintersPage() {
 
   async function submitForm(
     event: FormEvent,
-    action: () => Promise<void>,
+    action: () => Promise<{ type: "info"; message: string } | void>,
     successMessage: string,
   ) {
     event.preventDefault();
     setSaving(true);
     setError(null);
     setSuccess(null);
+    setInfo(null);
     try {
-      await action();
-      setSuccess(successMessage);
+      const result = await action();
+      if (result?.type === "info") {
+        setInfo(result.message);
+      } else {
+        setSuccess(successMessage);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
     } finally {
@@ -137,7 +158,7 @@ export default function PrintersPage() {
           </div>
         }
       />
-      <Message loading={loading} error={error} success={success} />
+      <Message loading={loading} error={error} success={success} info={info} />
 
       <div className="filter-bar">
         <button className={printerFilter === "active" ? "active" : ""} onClick={() => setPrinterFilter("active")} type="button">{t.activePrinters} ({printerCounts.active})</button>
@@ -181,20 +202,56 @@ export default function PrintersPage() {
         </table>
       </div>
 
+      <section className="catalog-section">
+        <h2>{locale === "ru" ? "Модели принтеров" : "Printer models"}</h2>
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>{t.vendor}</th>
+                <th>{t.modelName}</th>
+                <th>{t.printTechnology}</th>
+                <th>{t.colorMode}</th>
+                <th>{locale === "ru" ? "Активна" : "Active"}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {printerModels.length === 0 ? (
+                <EmptyRow colSpan={5} />
+              ) : (
+                printerModels.map((model) => (
+                  <tr key={model.id}>
+                    <td>{dash(model.vendor)}</td>
+                    <td>{model.name}</td>
+                    <td>{formatPrintTechnology(model.print_technology, locale)}</td>
+                    <td>{formatColorMode(model.color_mode, locale)}</td>
+                    <td>{model.is_active ? t.yes : t.no}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
       {(showModelForm || showPrinterForm) && (
         <div className="form-grid">
           {showModelForm && (
             <form className="panel" onSubmit={(event) => submitForm(event, async () => {
-              await postJson("/api/printer-models", compactBody({
+              const createdModel = await postJson<PrinterModel>("/api/printer-models", compactBody({
                 ...modelForm,
                 cartridge_slots_count: Number(modelForm.cartridge_slots_count),
               }));
               setModelForm(initialPrinterModel);
               setShowModelForm(false);
+              setShowPrinterForm(true);
+              setPrinterForm({ ...initialPrinter, printer_model_id: String(createdModel.id) });
               await loadData();
-            }, t.created)}>
+            }, modelCreatedMessage)}>
               <h2>{t.addPrinterModel}</h2>
-              <label>{t.vendor}<input value={modelForm.vendor} onChange={(e) => setModelForm({ ...modelForm, vendor: e.target.value })} /></label>
+              <p className="muted">{modelCatalogHint}</p>
+              <label>{t.vendor}<input list="printer-vendor-suggestions" value={modelForm.vendor} onChange={(e) => setModelForm({ ...modelForm, vendor: e.target.value })} /></label>
+              <datalist id="printer-vendor-suggestions">{vendorSuggestions.map((vendor) => <option key={vendor} value={vendor} />)}</datalist>
               <label>{t.modelName}<input required value={modelForm.name} onChange={(e) => setModelForm({ ...modelForm, name: e.target.value })} /></label>
               <label>{t.printTechnology}<select value={modelForm.print_technology} onChange={(e) => setModelForm({ ...modelForm, print_technology: e.target.value })}><option value="laser">{formatPrintTechnology("laser", locale)}</option><option value="inkjet">{formatPrintTechnology("inkjet", locale)}</option><option value="other">{formatPrintTechnology("other", locale)}</option></select></label>
               <label>{t.colorMode}<select value={modelForm.color_mode} onChange={(e) => setModelForm({ ...modelForm, color_mode: e.target.value })}><option value="mono">{formatColorMode("mono", locale)}</option><option value="color">{formatColorMode("color", locale)}</option></select></label>
@@ -206,14 +263,43 @@ export default function PrintersPage() {
 
           {showPrinterForm && (
             <form className="panel" onSubmit={(event) => submitForm(event, async () => {
-              await postJson("/api/printers", compactBody({
+              const previousPrinterFilter = printerFilter;
+              const createdPrinter = await postJson<Printer>("/api/printers", compactBody({
                 ...printerForm,
                 printer_model_id: Number(printerForm.printer_model_id),
                 current_location_id: printerForm.current_location_id ? Number(printerForm.current_location_id) : null,
               }));
               setPrinterForm(initialPrinter);
               setShowPrinterForm(false);
-              await loadData();
+              const reloadedPrinters = await loadData();
+              const createdInList = reloadedPrinters.some((printer) => printer.id === createdPrinter.id);
+              if (isActivePrinter(createdPrinter)) {
+                setPrinterFilter("active");
+              }
+              if (!createdInList) {
+                return {
+                  type: "info",
+                  message: locale === "ru"
+                    ? "Принтер создан, но не найден в загруженном списке. Обновите страницу или проверьте фильтр."
+                    : "Printer was created but was not found in the loaded list. Refresh the page or check the filter.",
+                };
+              }
+              if (isActivePrinter(createdPrinter) && previousPrinterFilter !== "active") {
+                return {
+                  type: "info",
+                  message: locale === "ru"
+                    ? "Принтер создан. Переключил фильтр на \"Активные\", чтобы новая запись была видна в таблице."
+                    : "Printer created. Switched the filter to \"Active\" so the new record is visible in the table.",
+                };
+              }
+              if (!isActivePrinter(createdPrinter)) {
+                return {
+                  type: "info",
+                  message: locale === "ru"
+                    ? "Принтер создан, но скрыт текущим фильтром, потому что он не в статусе \"В работе\"."
+                    : "Printer was created but is hidden by the current filter because it is not in work.",
+                };
+              }
             }, t.created)}>
               <h2>{t.addPrinter}</h2>
               <label>{t.printerModel}<select required value={printerForm.printer_model_id} onChange={(e) => setPrinterForm({ ...printerForm, printer_model_id: e.target.value })}><option value=""></option>{printerModels.map((model) => <option key={model.id} value={model.id}>{model.name}</option>)}</select></label>

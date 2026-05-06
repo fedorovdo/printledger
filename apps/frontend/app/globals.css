@@ -296,6 +296,20 @@ tr:last-child td {
   padding: 18px;
 }
 
+.catalog-section {
+  margin-top: 22px;
+}
+
+.catalog-section h2 {
+  margin: 0 0 12px;
+}
+
+.muted {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.45;
+}
+
 .auth-page {
   display: grid;
   min-height: calc(100vh - 150px);

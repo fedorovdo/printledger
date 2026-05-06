@@ -27,6 +27,7 @@ export type PrinterModel = {
   print_technology: string;
   color_mode: string;
   cartridge_slots_count: number;
+  is_active: boolean;
 };
 
 export type Printer = {
