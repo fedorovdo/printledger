@@ -354,10 +354,12 @@ Printer and cartridge model catalogs can be managed from the frontend:
 - `/printers` -> `+ Printer model` shows the printer model form and catalog table together.
 - `/cartridges` -> `+ Cartridge model` shows the cartridge model form and catalog table together.
 - Models can be edited with `PATCH /api/printer-models/{id}` and `PATCH /api/cartridge-models/{id}`.
-- Unsused models can be deleted.
+- Unused models can be deleted.
 - Linked models are protected: deleting a printer model used by printers or compatibility rows returns `409 Conflict`; deleting a cartridge model used by inventory history, installed cartridges, cartridge history, or compatibility rows returns `409 Conflict`.
+- Linked or outdated models can be deactivated with `PATCH ... { "is_active": false }`. Deactivated models remain in history and catalog filters, but disappear from working selection lists such as add-printer, stock-in, and cartridge install.
+- Deactivated models can be returned to work with `PATCH ... { "is_active": true }`.
 
-No database migrations are used for this stage. Existing linked data is preserved; deleting a linked model should be handled later through deactivation or a dedicated cleanup workflow.
+No database migrations are used for this stage. Existing linked data is preserved; deleting a linked model should be handled through deactivation or a dedicated cleanup workflow.
 
 ## Cartridge Inventory API
 

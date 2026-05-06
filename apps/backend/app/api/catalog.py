@@ -132,7 +132,7 @@ def _ensure_printer_model_can_be_deleted(db: Session, printer_model_id: int) -> 
     if _relation_exists(db, Printer, Printer.printer_model_id, printer_model_id):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="Нельзя удалить модель принтера: она используется в принтерах.",
+            detail="Нельзя удалить модель принтера: она используется в принтерах. Модель используется. Ее нельзя удалить, но можно деактивировать.",
         )
     if _relation_exists(
         db,
@@ -142,7 +142,7 @@ def _ensure_printer_model_can_be_deleted(db: Session, printer_model_id: int) -> 
     ):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="Нельзя удалить модель принтера: она используется в совместимостях.",
+            detail="Нельзя удалить модель принтера: она используется в совместимостях. Модель используется. Ее нельзя удалить, но можно деактивировать.",
         )
 
 
@@ -156,7 +156,7 @@ def _ensure_cartridge_model_can_be_deleted(db: Session, cartridge_model_id: int)
     if any(_relation_exists(db, model, field, cartridge_model_id) for model, field in relation_checks):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="Нельзя удалить модель картриджа: она используется в истории или остатках.",
+            detail="Нельзя удалить модель картриджа: она используется в истории или остатках. Модель используется. Ее нельзя удалить, но можно деактивировать.",
         )
 
 

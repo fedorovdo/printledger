@@ -37,6 +37,7 @@ const initialPrinter = {
 };
 
 type PrinterFilter = "active" | "repair" | "archived" | "all";
+type ModelFilter = "active" | "inactive" | "all";
 
 export default function PrintersPage() {
   const { locale, t } = useI18n();
@@ -47,6 +48,7 @@ export default function PrintersPage() {
   const [printerForm, setPrinterForm] = useState(initialPrinter);
   const [editingPrinterModelId, setEditingPrinterModelId] = useState<number | null>(null);
   const [printerFilter, setPrinterFilter] = useState<PrinterFilter>("active");
+  const [modelFilter, setModelFilter] = useState<ModelFilter>("active");
   const [showModelForm, setShowModelForm] = useState(false);
   const [showPrinterForm, setShowPrinterForm] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -81,6 +83,24 @@ export default function PrintersPage() {
     }
     return printers;
   }, [printerFilter, printers]);
+  const activePrinterModels = useMemo(
+    () => printerModels.filter((model) => model.is_active),
+    [printerModels],
+  );
+  const printerModelCounts = useMemo(() => ({
+    active: printerModels.filter((model) => model.is_active).length,
+    inactive: printerModels.filter((model) => !model.is_active).length,
+    all: printerModels.length,
+  }), [printerModels]);
+  const filteredPrinterModels = useMemo(() => {
+    if (modelFilter === "active") {
+      return printerModels.filter((model) => model.is_active);
+    }
+    if (modelFilter === "inactive") {
+      return printerModels.filter((model) => !model.is_active);
+    }
+    return printerModels;
+  }, [modelFilter, printerModels]);
 
   const vendorSuggestions = useMemo(
     () => Array.from(
@@ -176,6 +196,29 @@ export default function PrintersPage() {
       await loadData();
     } catch (err) {
       setError(err instanceof Error ? err.message : t.linkedModelDeleteBlocked);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function togglePrinterModelActive(model: PrinterModel) {
+    const nextActive = !model.is_active;
+    if (!nextActive && !window.confirm(t.deactivateModelConfirm)) {
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    setSuccess(null);
+    setInfo(null);
+    try {
+      await patchJson<PrinterModel>(`/api/printer-models/${model.id}`, { is_active: nextActive });
+      if (!nextActive && printerForm.printer_model_id === String(model.id)) {
+        setPrinterForm({ ...printerForm, printer_model_id: "" });
+      }
+      setSuccess(nextActive ? t.modelReactivated : t.modelDeactivated);
+      await loadData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unknown error");
     } finally {
       setSaving(false);
     }
@@ -281,6 +324,11 @@ export default function PrintersPage() {
               </form>
               <section className="catalog-section">
                 <h2>{t.printerModelCatalog}</h2>
+                <div className="filter-bar compact-filter">
+                  <button className={modelFilter === "active" ? "active" : ""} onClick={() => setModelFilter("active")} type="button">{t.activeModels} ({printerModelCounts.active})</button>
+                  <button className={modelFilter === "inactive" ? "active" : ""} onClick={() => setModelFilter("inactive")} type="button">{t.inactiveModels} ({printerModelCounts.inactive})</button>
+                  <button className={modelFilter === "all" ? "active" : ""} onClick={() => setModelFilter("all")} type="button">{t.allModels} ({printerModelCounts.all})</button>
+                </div>
                 <div className="table-wrap">
                   <table>
                     <thead>
@@ -292,14 +340,15 @@ export default function PrintersPage() {
                         <th>{t.active}</th>
                         <th>{t.edit}</th>
                         <th>{t.delete}</th>
+                        <th>{t.status}</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {printerModels.length === 0 ? (
-                        <EmptyRow colSpan={7} />
+                      {filteredPrinterModels.length === 0 ? (
+                        <EmptyRow colSpan={8} />
                       ) : (
-                        printerModels.map((model) => (
-                          <tr key={model.id}>
+                        filteredPrinterModels.map((model) => (
+                          <tr className={!model.is_active ? "row-muted" : ""} key={model.id}>
                             <td>{dash(model.vendor)}</td>
                             <td>{model.name}</td>
                             <td>{formatPrintTechnology(model.print_technology, locale)}</td>
@@ -307,6 +356,7 @@ export default function PrintersPage() {
                             <td>{model.is_active ? t.yes : t.no}</td>
                             <td><button className="button tiny secondary" onClick={() => startEditPrinterModel(model)} type="button">{t.edit}</button></td>
                             <td><button className="button tiny danger" disabled={saving} onClick={() => void deletePrinterModel(model)} type="button">{t.delete}</button></td>
+                            <td><button className="button tiny secondary" disabled={saving} onClick={() => void togglePrinterModelActive(model)} type="button">{model.is_active ? t.deactivate : t.reactivate}</button></td>
                           </tr>
                         ))
                       )}
@@ -358,7 +408,7 @@ export default function PrintersPage() {
               }
             }, t.created)}>
               <h2>{t.addPrinter}</h2>
-              <label>{t.printerModel}<select required value={printerForm.printer_model_id} onChange={(e) => setPrinterForm({ ...printerForm, printer_model_id: e.target.value })}><option value=""></option>{printerModels.map((model) => <option key={model.id} value={model.id}>{model.name}</option>)}</select></label>
+              <label>{t.printerModel}<select required value={printerForm.printer_model_id} onChange={(e) => setPrinterForm({ ...printerForm, printer_model_id: e.target.value })}><option value=""></option>{activePrinterModels.map((model) => <option key={model.id} value={model.id}>{model.name}</option>)}</select></label>
               <label>{t.serialNumber}<input value={printerForm.serial_number} onChange={(e) => setPrinterForm({ ...printerForm, serial_number: e.target.value })} /></label>
               <label>{t.inventoryNumber}<input value={printerForm.inventory_number} onChange={(e) => setPrinterForm({ ...printerForm, inventory_number: e.target.value })} /></label>
               <label>{t.ipAddress}<input value={printerForm.ip_address} onChange={(e) => setPrinterForm({ ...printerForm, ip_address: e.target.value })} /></label>

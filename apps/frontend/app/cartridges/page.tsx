@@ -26,6 +26,8 @@ const initialStockIn = {
   comment: "",
 };
 
+type ModelFilter = "active" | "inactive" | "all";
+
 export default function CartridgesPage() {
   const { locale, t } = useI18n();
   const [stock, setStock] = useState<CartridgeStock[]>([]);
@@ -33,6 +35,7 @@ export default function CartridgesPage() {
   const [modelForm, setModelForm] = useState(initialModel);
   const [stockInForm, setStockInForm] = useState(initialStockIn);
   const [editingModelId, setEditingModelId] = useState<number | null>(null);
+  const [modelFilter, setModelFilter] = useState<ModelFilter>("active");
   const [showModelForm, setShowModelForm] = useState(false);
   const [showStockInForm, setShowStockInForm] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -46,6 +49,24 @@ export default function CartridgesPage() {
     ).sort(),
     [models],
   );
+  const activeModels = useMemo(
+    () => models.filter((model) => model.is_active),
+    [models],
+  );
+  const modelCounts = useMemo(() => ({
+    active: models.filter((model) => model.is_active).length,
+    inactive: models.filter((model) => !model.is_active).length,
+    all: models.length,
+  }), [models]);
+  const filteredModels = useMemo(() => {
+    if (modelFilter === "active") {
+      return models.filter((model) => model.is_active);
+    }
+    if (modelFilter === "inactive") {
+      return models.filter((model) => !model.is_active);
+    }
+    return models;
+  }, [modelFilter, models]);
 
   async function loadData() {
     setLoading(true);
@@ -130,6 +151,28 @@ export default function CartridgesPage() {
       await loadData();
     } catch (err) {
       setError(err instanceof Error ? err.message : t.linkedModelDeleteBlocked);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function toggleModelActive(model: CartridgeModel) {
+    const nextActive = !model.is_active;
+    if (!nextActive && !window.confirm(t.deactivateModelConfirm)) {
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      await patchJson<CartridgeModel>(`/api/cartridge-models/${model.id}`, { is_active: nextActive });
+      if (!nextActive && stockInForm.cartridge_model_id === String(model.id)) {
+        setStockInForm({ ...stockInForm, cartridge_model_id: "" });
+      }
+      setSuccess(nextActive ? t.modelReactivated : t.modelDeactivated);
+      await loadData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unknown error");
     } finally {
       setSaving(false);
     }
@@ -235,6 +278,11 @@ export default function CartridgesPage() {
               </form>
               <section className="catalog-section">
                 <h2>{t.cartridgeModelCatalog}</h2>
+                <div className="filter-bar compact-filter">
+                  <button className={modelFilter === "active" ? "active" : ""} onClick={() => setModelFilter("active")} type="button">{t.activeModels} ({modelCounts.active})</button>
+                  <button className={modelFilter === "inactive" ? "active" : ""} onClick={() => setModelFilter("inactive")} type="button">{t.inactiveModels} ({modelCounts.inactive})</button>
+                  <button className={modelFilter === "all" ? "active" : ""} onClick={() => setModelFilter("all")} type="button">{t.allModels} ({modelCounts.all})</button>
+                </div>
                 <div className="table-wrap">
                   <table>
                     <thead>
@@ -247,14 +295,15 @@ export default function CartridgesPage() {
                         <th>{t.active}</th>
                         <th>{t.edit}</th>
                         <th>{t.delete}</th>
+                        <th>{t.status}</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {models.length === 0 ? (
-                        <EmptyRow colSpan={8} />
+                      {filteredModels.length === 0 ? (
+                        <EmptyRow colSpan={9} />
                       ) : (
-                        models.map((model) => (
-                          <tr key={model.id}>
+                        filteredModels.map((model) => (
+                          <tr className={!model.is_active ? "row-muted" : ""} key={model.id}>
                             <td>{dash(model.vendor)}</td>
                             <td>{model.model_name}</td>
                             <td>{dash(model.purchase_sku)}</td>
@@ -263,6 +312,7 @@ export default function CartridgesPage() {
                             <td>{model.is_active ? t.yes : t.no}</td>
                             <td><button className="button tiny secondary" onClick={() => startEditModel(model)} type="button">{t.edit}</button></td>
                             <td><button className="button tiny danger" disabled={saving} onClick={() => void deleteModel(model)} type="button">{t.delete}</button></td>
+                            <td><button className="button tiny secondary" disabled={saving} onClick={() => void toggleModelActive(model)} type="button">{model.is_active ? t.deactivate : t.reactivate}</button></td>
                           </tr>
                         ))
                       )}
@@ -276,7 +326,7 @@ export default function CartridgesPage() {
           {showStockInForm && (
             <form className="panel" onSubmit={stockIn}>
               <h2>{t.stockIn}</h2>
-              <label>{t.cartridgeModel}<select required value={stockInForm.cartridge_model_id} onChange={(e) => setStockInForm({ ...stockInForm, cartridge_model_id: e.target.value })}><option value=""></option>{models.map((model) => <option key={model.id} value={model.id}>{model.model_name}</option>)}</select></label>
+              <label>{t.cartridgeModel}<select required value={stockInForm.cartridge_model_id} onChange={(e) => setStockInForm({ ...stockInForm, cartridge_model_id: e.target.value })}><option value=""></option>{activeModels.map((model) => <option key={model.id} value={model.id}>{model.model_name}</option>)}</select></label>
               <label>{t.quantity}<input min="1" required type="number" value={stockInForm.quantity} onChange={(e) => setStockInForm({ ...stockInForm, quantity: e.target.value })} /></label>
               <label>{t.condition}<select value={stockInForm.item_condition} onChange={(e) => setStockInForm({ ...stockInForm, item_condition: e.target.value })}><option value="new">{formatCartridgeCondition("new", locale)}</option><option value="refilled">{formatCartridgeCondition("refilled", locale)}</option></select></label>
               <label>{t.reason}<input value={stockInForm.reason} onChange={(e) => setStockInForm({ ...stockInForm, reason: e.target.value })} /></label>

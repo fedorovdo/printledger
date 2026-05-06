@@ -69,6 +69,10 @@ export default function PrinterCardPage() {
     () => new Map(cartridgeModels.map((model) => [model.id, model.model_name])),
     [cartridgeModels],
   );
+  const activeCartridgeModels = useMemo(
+    () => cartridgeModels.filter((model) => model.is_active),
+    [cartridgeModels],
+  );
 
   async function loadData() {
     setLoading(true);
@@ -198,7 +202,7 @@ export default function PrinterCardPage() {
           setInstallForm({ cartridge_model_id: "", item_condition: "new", slot_name: "Black", color_role: "black", comment: "" });
         }, t.cartridgeInstalled)}>
           <h2>{t.installCartridge}</h2>
-          <label>{t.cartridgeModel}<select required value={installForm.cartridge_model_id} onChange={(e) => setInstallForm({ ...installForm, cartridge_model_id: e.target.value })}><option value=""></option>{cartridgeModels.map((model) => <option key={model.id} value={model.id}>{model.model_name}</option>)}</select></label>
+          <label>{t.cartridgeModel}<select required value={installForm.cartridge_model_id} onChange={(e) => setInstallForm({ ...installForm, cartridge_model_id: e.target.value })}><option value=""></option>{activeCartridgeModels.map((model) => <option key={model.id} value={model.id}>{model.model_name}</option>)}</select></label>
           <label>{t.condition}<select value={installForm.item_condition} onChange={(e) => setInstallForm({ ...installForm, item_condition: e.target.value })}><option value="new">{formatCartridgeCondition("new", locale)}</option><option value="refilled">{formatCartridgeCondition("refilled", locale)}</option></select></label>
           <label>{t.slotName}<input value={installForm.slot_name} onChange={(e) => setInstallForm({ ...installForm, slot_name: e.target.value })} /></label>
           <label>{t.colorRole}<select value={installForm.color_role} onChange={(e) => setInstallForm({ ...installForm, color_role: e.target.value })}><option value="black">{formatColorRole("black", locale)}</option><option value="cyan">{formatColorRole("cyan", locale)}</option><option value="magenta">{formatColorRole("magenta", locale)}</option><option value="yellow">{formatColorRole("yellow", locale)}</option><option value="other">{formatColorRole("other", locale)}</option></select></label>
