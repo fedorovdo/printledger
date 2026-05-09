@@ -63,6 +63,15 @@ export default function PrinterCardPage() {
   const [repairForm, setRepairForm] = useState({ service_company: "", reason: "", notes: "" });
   const [returnForm, setReturnForm] = useState({ repair_id: "", result: "", notes: "" });
   const [archiveForm, setArchiveForm] = useState({ archive_reason: "archived", comment: "" });
+  const [isEditingPrinter, setIsEditingPrinter] = useState(false);
+  const [printerEditForm, setPrinterEditForm] = useState({
+    printer_model_id: "",
+    serial_number: "",
+    inventory_number: "",
+    ip_address: "",
+    mac_address: "",
+    notes: "",
+  });
 
   const printerModelById = useMemo(
     () => new Map(printerModels.map((model) => [model.id, model])),
@@ -109,6 +118,12 @@ export default function PrinterCardPage() {
   const activeCartridgeModels = useMemo(
     () => cartridgeModels.filter((model) => model.is_active),
     [cartridgeModels],
+  );
+  const selectablePrinterModels = useMemo(
+    () => printerModels.filter(
+      (model) => model.is_active || (printer && model.id === printer.printer_model_id),
+    ),
+    [printer, printerModels],
   );
 
   async function loadData() {
@@ -176,8 +191,8 @@ export default function PrinterCardPage() {
       setSuccess(message);
       await loadData();
     } catch (err) {
-      if (err instanceof ApiError && err.status === 409) {
-        setError(t.slotConflict);
+      if (err instanceof ApiError) {
+        setError(err.message || (err.status === 409 ? t.slotConflict : "Unknown error"));
       } else {
         setError(err instanceof Error ? err.message : "Unknown error");
       }
@@ -189,11 +204,47 @@ export default function PrinterCardPage() {
   const printerModel = printer ? printerModelById.get(printer.printer_model_id) : null;
   const isLifecycleLocked = printer ? isArchivedPrinter(printer) : false;
 
+  function startEditPrinter() {
+    if (!printer) {
+      return;
+    }
+    setPrinterEditForm({
+      printer_model_id: String(printer.printer_model_id),
+      serial_number: printer.serial_number ?? "",
+      inventory_number: printer.inventory_number ?? "",
+      ip_address: printer.ip_address ?? "",
+      mac_address: printer.mac_address ?? "",
+      notes: printer.notes ?? "",
+    });
+    setIsEditingPrinter(true);
+    setError(null);
+    setSuccess(null);
+  }
+
+  function cancelEditPrinter() {
+    setIsEditingPrinter(false);
+    setPrinterEditForm({
+      printer_model_id: "",
+      serial_number: "",
+      inventory_number: "",
+      ip_address: "",
+      mac_address: "",
+      notes: "",
+    });
+  }
+
   return (
     <section>
       <PageHeader
         title={printer?.inventory_number ?? printer?.serial_number ?? t.printerCard}
-        action={<Link className="button secondary" href="/printers">{t.back}</Link>}
+        action={
+          <div className="page-actions">
+            {printer && !isLifecycleLocked && (
+              <button className="button secondary" onClick={startEditPrinter} type="button">{t.edit}</button>
+            )}
+            <Link className="button secondary" href="/printers">{t.back}</Link>
+          </div>
+        }
       />
       <Message loading={loading} error={error} success={success} />
 
@@ -232,6 +283,34 @@ export default function PrinterCardPage() {
       )}
 
       {isLifecycleLocked && <Message info={t.archivedPrinterActionsDisabled} />}
+      {isLifecycleLocked && <Message info={t.archivedPrinterEditDisabled} />}
+
+      {isEditingPrinter && printer && (
+        <form className="panel wide" onSubmit={(event) => submitForm(event, async () => {
+          await patchJson<Printer>(`/api/printers/${printer.id}`, {
+            printer_model_id: Number(printerEditForm.printer_model_id),
+            serial_number: printerEditForm.serial_number || null,
+            inventory_number: printerEditForm.inventory_number || null,
+            ip_address: printerEditForm.ip_address || null,
+            mac_address: printerEditForm.mac_address || null,
+            notes: printerEditForm.notes || null,
+          });
+          cancelEditPrinter();
+        }, t.printerUpdated)}>
+          <h2>{t.editPrinter}</h2>
+          <label>{t.printerModel}<select required value={printerEditForm.printer_model_id} onChange={(e) => setPrinterEditForm({ ...printerEditForm, printer_model_id: e.target.value })}><option value=""></option>{selectablePrinterModels.map((model) => <option key={model.id} value={model.id}>{model.name}</option>)}</select></label>
+          <label>{t.serialNumber}<input value={printerEditForm.serial_number} onChange={(e) => setPrinterEditForm({ ...printerEditForm, serial_number: e.target.value })} /></label>
+          <label>{t.inventoryNumber}<input value={printerEditForm.inventory_number} onChange={(e) => setPrinterEditForm({ ...printerEditForm, inventory_number: e.target.value })} /></label>
+          <label>{t.ipAddress}<input value={printerEditForm.ip_address} onChange={(e) => setPrinterEditForm({ ...printerEditForm, ip_address: e.target.value })} /></label>
+          <label>{t.macAddress}<input value={printerEditForm.mac_address} onChange={(e) => setPrinterEditForm({ ...printerEditForm, mac_address: e.target.value })} /></label>
+          <p className="muted">{t.locationChangeMoveHint}</p>
+          <label>{t.notes}<textarea value={printerEditForm.notes} onChange={(e) => setPrinterEditForm({ ...printerEditForm, notes: e.target.value })} /></label>
+          <div className="inline-actions">
+            <button className="button" disabled={saving} type="submit">{t.save}</button>
+            <button className="button secondary" disabled={saving} onClick={cancelEditPrinter} type="button">{t.cancel}</button>
+          </div>
+        </form>
+      )}
 
       <div className="form-grid three">
         <form className="panel" onSubmit={(event) => submitForm(event, async () => {

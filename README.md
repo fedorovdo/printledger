@@ -297,11 +297,14 @@ Archived and written-off printers show a badge on the card; install, move, and s
 
 Available card actions:
 
+- Edit physical printer details such as model, serial number, inventory number, IP, MAC, and notes.
 - Install a cartridge into the current printer.
 - Remove an installed cartridge and choose exactly one follow-up action: return to stock, send to refill, write off, or remove only.
 - Move the printer to another location.
 - Send the printer to repair and return it from repair.
 - Archive or write off the printer.
+
+Printer location is intentionally changed through the move workflow, not the edit form, so movement history stays complete.
 
 ## API v1 Foundation
 
