@@ -9,6 +9,7 @@ import { useI18n } from "@/lib/i18n";
 import {
   dash,
   formatColorMode,
+  formatLocationLabel,
   formatPrintTechnology,
   isActivePrinter,
   isArchivedPrinter,
@@ -63,9 +64,17 @@ export default function PrintersPage() {
     () => new Map(printerModels.map((model) => [model.id, model.name])),
     [printerModels],
   );
-  const locationName = useMemo(
-    () => new Map(locations.map((location) => [location.id, location.display_name])),
+  const locationById = useMemo(
+    () => new Map(locations.map((location) => [location.id, location])),
     [locations],
+  );
+  const organizationById = useMemo(
+    () => new Map(organizations.map((org) => [org.id, org])),
+    [organizations],
+  );
+  const branchById = useMemo(
+    () => new Map(branches.map((branch) => [branch.id, branch])),
+    [branches],
   );
   const activeOrganizationIds = useMemo(
     () => new Set(organizations.filter((org) => org.is_active).map((org) => org.id)),
@@ -79,7 +88,8 @@ export default function PrintersPage() {
     () => locations.filter(
       (location) => location.is_active
         && activeOrganizationIds.has(location.organization_id)
-        && (!location.branch_id || activeBranchIds.has(location.branch_id)),
+        && location.branch_id !== null
+        && activeBranchIds.has(location.branch_id),
     ),
     [activeBranchIds, activeOrganizationIds, locations],
   );
@@ -294,7 +304,7 @@ export default function PrintersPage() {
                   <td>{dash(printer.inventory_number)}</td>
                   <td>{dash(printer.serial_number)}</td>
                   <td>{dash(printer.ip_address)}</td>
-                  <td>{printer.current_location_id ? dash(locationName.get(printer.current_location_id)) : dash(null)}</td>
+                  <td>{printer.current_location_id ? formatLocationLabel(locationById.get(printer.current_location_id), organizationById, branchById, locale, "short") : dash(null)}</td>
                   <td>{labelPrinterStatus(printer.status, locale)}</td>
                   <td>{isArchivedPrinter(printer) ? t.yes : t.no}</td>
                   <td><Link className="button tiny secondary" href={`/printers/${printer.id}`}>{t.open}</Link></td>
@@ -435,7 +445,7 @@ export default function PrintersPage() {
               <label>{t.inventoryNumber}<input value={printerForm.inventory_number} onChange={(e) => setPrinterForm({ ...printerForm, inventory_number: e.target.value })} /></label>
               <label>{t.ipAddress}<input value={printerForm.ip_address} onChange={(e) => setPrinterForm({ ...printerForm, ip_address: e.target.value })} /></label>
               <label>{t.macAddress}<input value={printerForm.mac_address} onChange={(e) => setPrinterForm({ ...printerForm, mac_address: e.target.value })} /></label>
-              <label>{t.location}<select value={printerForm.current_location_id} onChange={(e) => setPrinterForm({ ...printerForm, current_location_id: e.target.value })}><option value=""></option>{activeLocations.map((location) => <option key={location.id} value={location.id}>{location.display_name}</option>)}</select></label>
+              <label>{t.location}<select value={printerForm.current_location_id} onChange={(e) => setPrinterForm({ ...printerForm, current_location_id: e.target.value })}><option value=""></option>{activeLocations.map((location) => <option key={location.id} value={location.id}>{formatLocationLabel(location, organizationById, branchById, locale)}</option>)}</select></label>
               <label>{t.notes}<textarea value={printerForm.notes} onChange={(e) => setPrinterForm({ ...printerForm, notes: e.target.value })} /></label>
               <button className="button" disabled={saving} type="submit">{t.save}</button>
             </form>

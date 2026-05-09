@@ -64,7 +64,7 @@ class LocationBase(BaseModel):
     branch_id: int | None = None
     department: str | None = Field(default=None, max_length=255)
     room: str | None = Field(default=None, max_length=100)
-    display_name: str = Field(max_length=255)
+    display_name: str | None = Field(default=None, max_length=255)
     notes: str | None = None
     is_active: bool = True
 

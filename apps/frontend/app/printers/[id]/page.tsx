@@ -14,6 +14,7 @@ import {
   formatColorMode,
   formatColorRole,
   formatInstalledCartridgeStatus,
+  formatLocationLabel,
   formatPrintTechnology,
   formatRemoveAction,
   formatRepairStatus,
@@ -65,9 +66,20 @@ export default function PrinterCardPage() {
     () => new Map(printerModels.map((model) => [model.id, model])),
     [printerModels],
   );
+  const organizationById = useMemo(
+    () => new Map(organizations.map((org) => [org.id, org])),
+    [organizations],
+  );
+  const branchById = useMemo(
+    () => new Map(branches.map((branch) => [branch.id, branch])),
+    [branches],
+  );
   const locationName = useMemo(
-    () => new Map(locations.map((location) => [location.id, location.display_name])),
-    [locations],
+    () => new Map(locations.map((location) => [
+      location.id,
+      formatLocationLabel(location, organizationById, branchById, locale, "short"),
+    ])),
+    [branchById, locale, locations, organizationById],
   );
   const activeOrganizationIds = useMemo(
     () => new Set(organizations.filter((org) => org.is_active).map((org) => org.id)),
@@ -81,7 +93,8 @@ export default function PrinterCardPage() {
     () => locations.filter(
       (location) => location.is_active
         && activeOrganizationIds.has(location.organization_id)
-        && (!location.branch_id || activeBranchIds.has(location.branch_id)),
+        && location.branch_id !== null
+        && activeBranchIds.has(location.branch_id),
     ),
     [activeBranchIds, activeOrganizationIds, locations],
   );
@@ -262,7 +275,7 @@ export default function PrinterCardPage() {
           setMoveForm({ to_location_id: "", reason: "", notes: "" });
         }, t.printerMoved)}>
           <h2>{t.movePrinter}</h2>
-          <label>{t.toLocation}<select required value={moveForm.to_location_id} onChange={(e) => setMoveForm({ ...moveForm, to_location_id: e.target.value })}><option value=""></option>{activeLocations.map((location) => <option key={location.id} value={location.id}>{location.display_name}</option>)}</select></label>
+          <label>{t.toLocation}<select required value={moveForm.to_location_id} onChange={(e) => setMoveForm({ ...moveForm, to_location_id: e.target.value })}><option value=""></option>{activeLocations.map((location) => <option key={location.id} value={location.id}>{formatLocationLabel(location, organizationById, branchById, locale)}</option>)}</select></label>
           <label>{t.reason}<input value={moveForm.reason} onChange={(e) => setMoveForm({ ...moveForm, reason: e.target.value })} /></label>
           <label>{t.notes}<textarea value={moveForm.notes} onChange={(e) => setMoveForm({ ...moveForm, notes: e.target.value })} /></label>
           <button className="button" disabled={saving || isLifecycleLocked} type="submit">{t.save}</button>

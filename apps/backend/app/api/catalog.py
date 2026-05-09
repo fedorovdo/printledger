@@ -91,6 +91,12 @@ def normalize_text(value: object) -> str:
     return re.sub(r"\s+", " ", str(value).strip()).lower()
 
 
+def clean_text(value: object) -> str:
+    if value is None:
+        return ""
+    return re.sub(r"\s+", " ", str(value).strip())
+
+
 def _raise_duplicate(detail: str) -> None:
     raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=detail)
 
@@ -249,26 +255,52 @@ def _validate_location_unique(
     normalized_display_name = normalize_text(display_name)
     normalized_department = normalize_text(department)
     normalized_room = normalize_text(room)
-    _ensure_unique(
-        db,
-        Location,
-        lambda item: item.organization_id == organization_id
-        and item.branch_id == branch_id
-        and normalize_text(item.display_name) == normalized_display_name,
-        "Такая локация уже существует.",
-        exclude_id,
-    )
-    if normalized_department or normalized_room:
+    if normalized_display_name:
         _ensure_unique(
             db,
             Location,
             lambda item: item.organization_id == organization_id
             and item.branch_id == branch_id
-            and normalize_text(item.department) == normalized_department
-            and normalize_text(item.room) == normalized_room,
+            and normalize_text(item.display_name) == normalized_display_name,
             "Такая локация уже существует.",
             exclude_id,
         )
+    _ensure_unique(
+        db,
+        Location,
+        lambda item: item.organization_id == organization_id
+        and item.branch_id == branch_id
+        and normalize_text(item.department) == normalized_department
+        and normalize_text(item.room) == normalized_room,
+        "Такая локация уже существует.",
+        exclude_id,
+    )
+
+
+def _format_location_display_name(department: str | None, room: str) -> str:
+    room_label = f"каб. {room}"
+    return f"{department}, {room_label}" if department else room_label
+
+
+def _prepare_location_payload(data: dict[str, Any]) -> dict[str, Any]:
+    if data.get("branch_id") is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Филиал обязателен.")
+
+    department = clean_text(data.get("department")) or None
+    room = clean_text(data.get("room"))
+    if not room:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Кабинет обязателен.")
+
+    display_name = clean_text(data.get("display_name"))
+    if not display_name:
+        display_name = _format_location_display_name(department, room)
+
+    return {
+        **data,
+        "department": department,
+        "room": room,
+        "display_name": display_name,
+    }
 
 
 def _validate_printer_model_unique(
@@ -487,15 +519,18 @@ def get_location(item_id: int, db: Session = Depends(get_db)) -> Location:
     tags=["locations"],
 )
 def post_location(payload: LocationCreate, db: Session = Depends(get_db)) -> Location:
+    location_data = _prepare_location_payload(payload.model_dump())
     _validate_location_unique(
         db,
-        payload.organization_id,
-        payload.branch_id,
-        payload.display_name,
-        payload.department,
-        payload.room,
+        location_data["organization_id"],
+        location_data["branch_id"],
+        location_data["display_name"],
+        location_data["department"],
+        location_data["room"],
     )
-    return create_item(db, Location, payload)
+    item = Location(**location_data)
+    db.add(item)
+    return _commit_or_409(db, item)
 
 
 @router.patch("/locations/{item_id}", response_model=LocationRead, tags=["locations"])
@@ -504,16 +539,37 @@ def patch_location(
 ) -> Location:
     item = _get_or_404(db, Location, item_id)
     updates = payload.model_dump(exclude_unset=True)
-    _validate_location_unique(
-        db,
-        _merged_value(item, updates, "organization_id"),
-        _merged_value(item, updates, "branch_id"),
-        _merged_value(item, updates, "display_name"),
-        _merged_value(item, updates, "department"),
-        _merged_value(item, updates, "room"),
-        item.id,
+    if "branch_id" in updates and updates["branch_id"] is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Филиал обязателен.")
+    if "room" in updates and not clean_text(updates["room"]):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Кабинет обязателен.")
+    should_prepare_location = any(
+        field in updates
+        for field in ("organization_id", "branch_id", "department", "room", "display_name")
     )
-    return update_item(db, item, payload)
+    location_data = {
+        "organization_id": _merged_value(item, updates, "organization_id"),
+        "branch_id": _merged_value(item, updates, "branch_id"),
+        "department": _merged_value(item, updates, "department"),
+        "room": _merged_value(item, updates, "room"),
+        "display_name": _merged_value(item, updates, "display_name"),
+    }
+    if should_prepare_location:
+        location_data = _prepare_location_payload(location_data)
+        updates.update(location_data)
+    if should_prepare_location:
+        _validate_location_unique(
+            db,
+            location_data["organization_id"],
+            location_data["branch_id"],
+            location_data["display_name"],
+            location_data["department"],
+            location_data["room"],
+            item.id,
+        )
+    for field, value in updates.items():
+        setattr(item, field, value)
+    return _commit_or_409(db, item)
 
 
 @router.delete("/locations/{item_id}", response_model=LocationRead, tags=["locations"])

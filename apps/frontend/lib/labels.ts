@@ -1,5 +1,5 @@
 import type { Locale } from "@/lib/i18n";
-import type { Location, Printer, PrinterModel } from "@/lib/types";
+import type { Branch, Location, Organization, Printer, PrinterModel } from "@/lib/types";
 
 const operationLabels = {
   ru: {
@@ -203,6 +203,39 @@ export function dash(value: string | number | null | undefined) {
   return value === null || value === undefined || value === "" ? "\u2014" : String(value);
 }
 
+function locationRoomLabel(room: string | null | undefined, locale: Locale) {
+  if (!room) {
+    return null;
+  }
+  return `${locale === "ru" ? "каб." : "room"} ${room}`;
+}
+
+export function formatLocationLabel(
+  location: Location | null | undefined,
+  organizationMap: ReadonlyMap<number, Organization | string>,
+  branchMap: ReadonlyMap<number, Branch | string>,
+  locale: Locale,
+  variant: "full" | "short" = "full",
+) {
+  if (!location) {
+    return dash(null);
+  }
+
+  const organization = organizationMap.get(location.organization_id);
+  const organizationName = typeof organization === "string" ? organization : organization?.name;
+  const branch = location.branch_id ? branchMap.get(location.branch_id) : undefined;
+  const branchName = typeof branch === "string" ? branch : branch?.name;
+  const room = locationRoomLabel(location.room, locale);
+  const tail = room ?? location.display_name;
+  const parts = variant === "full"
+    ? [organizationName, branchName, location.department, tail]
+    : [branchName, location.department, tail];
+
+  return parts
+    .filter((part) => part !== undefined && part !== null && part !== "")
+    .join(variant === "full" ? " / " : ", ");
+}
+
 export function formatPrinterLabel(
   printer: Printer,
   printerModelMap: ReadonlyMap<number, PrinterModel | string>,
@@ -213,7 +246,11 @@ export function formatPrinterLabel(
   const location = printer.current_location_id
     ? locationMap.get(printer.current_location_id)
     : undefined;
-  const locationName = typeof location === "string" ? location : location?.display_name;
+  const locationName = typeof location === "string"
+    ? location
+    : location?.room
+      ? `${location.department ? `${location.department}, ` : ""}каб. ${location.room}`
+      : location?.display_name;
   const parts = [
     dash(modelName),
     `Инв. ${dash(printer.inventory_number)}`,

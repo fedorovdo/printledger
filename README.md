@@ -163,7 +163,7 @@ Pages:
 - `http://localhost:3000/` - dashboard with backend, database, cartridge model, printer, and archived printer status cards.
 - `http://localhost:3000/cartridges` - compact cartridge stock list with collapsed quick forms for cartridge model creation and stock-in.
 - `http://localhost:3000/printers` - printer list with Active/In repair/Archive/All filters and collapsed quick-add forms for printer models and printers.
-- `http://localhost:3000/locations` - simple create/list sections for organizations, branches, and locations.
+- `http://localhost:3000/locations` - location directory management with the location list first, collapsed organization/branch/location forms, and room-aware labels.
 - `http://localhost:3000/operations` - cartridge inventory transaction list.
 - `http://localhost:3000/backup` - authenticated backup list, create, download, restore, and delete actions.
 - `http://localhost:3000/about` - application version, backend/database status, environment, and documentation hint.
@@ -350,7 +350,7 @@ Protected entities:
 - Cartridge models: `model_name`; `purchase_sku` is also unique when filled.
 - Organizations: `name`; `short_name` is also unique when filled.
 - Branches: `organization_id + name`.
-- Locations: `organization_id + branch_id + display_name`, plus department/room inside the same organization and branch.
+- Locations: `organization_id + branch_id + department + room`; display name is also checked when filled.
 - Printers: `inventory_number`, `serial_number`, `mac_address`, and `ip_address` when filled. Inventory numbers are checked across all printers; the other identifiers are checked among non-archived printers.
 
 Duplicate create/update requests return `409 Conflict` with a readable Russian message. Existing duplicates are not deleted or changed automatically. If duplicates already exist in a database, clean them up manually later by editing, archiving, or consolidating records.
@@ -382,6 +382,9 @@ Organizations, branches, and locations are managed on `/locations`.
 - Linked records are protected and return `409 Conflict`. If a record is used, deactivate it with `PATCH ... { "is_active": false }` instead of deleting it.
 - Deactivated organizations, branches, and locations remain available for history, but inactive locations are hidden from working printer location selects.
 - Printer creation and printer movement selects show only active locations whose organization and branch are also active.
+- For locations, organization, branch, and room are required. Department is optional.
+- If `display_name` is empty, the backend generates it from department and room, for example `каб. 214` or `Бухгалтерия, каб. 214`.
+- Printer location labels now include organization, branch, optional department, and room, so cabinet numbers are visible in printer lists, printer cards, and movement selects.
 
 No database migrations are used for this stage because `is_active` already exists on these tables.
 
@@ -517,7 +520,7 @@ Available endpoints:
 
 Run after migrations are applied.
 
-Create an organization and location:
+Create an organization, branch, and location:
 
 ```powershell
 $suffix = Get-Date -Format "yyyyMMddHHmmss"
@@ -527,9 +530,15 @@ $orgBody = @{
 } | ConvertTo-Json
 $org = Invoke-RestMethod -Method Post -Uri http://localhost:8000/api/organizations -ContentType "application/json" -Body $orgBody
 
+$branchBody = @{
+  organization_id = $org.id
+  name = "Smoke Branch $suffix"
+} | ConvertTo-Json
+$branch = Invoke-RestMethod -Method Post -Uri http://localhost:8000/api/branches -ContentType "application/json" -Body $branchBody
+
 $locationBody = @{
   organization_id = $org.id
-  display_name = "Smoke Room $suffix"
+  branch_id = $branch.id
   department = "IT"
   room = "101"
 } | ConvertTo-Json
@@ -562,7 +571,7 @@ Create another location and move the printer:
 ```powershell
 $targetLocationBody = @{
   organization_id = $org.id
-  display_name = "Smoke Room Target $suffix"
+  branch_id = $branch.id
   department = "Finance"
   room = "202"
 } | ConvertTo-Json
