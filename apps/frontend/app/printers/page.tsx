@@ -10,6 +10,8 @@ import {
   dash,
   formatColorMode,
   formatLocationLabel,
+  formatLocationPlaceLabel,
+  formatLocationRoom,
   formatPrintTechnology,
   isActivePrinter,
   isArchivedPrinter,
@@ -37,6 +39,14 @@ const initialPrinter = {
   notes: "",
 };
 
+const initialQuickLocation = {
+  organization_id: "",
+  branch_id: "",
+  department: "",
+  room: "",
+  notes: "",
+};
+
 type PrinterFilter = "active" | "repair" | "archived" | "all";
 type ModelFilter = "active" | "inactive" | "all";
 
@@ -49,11 +59,13 @@ export default function PrintersPage() {
   const [branches, setBranches] = useState<Branch[]>([]);
   const [modelForm, setModelForm] = useState(initialPrinterModel);
   const [printerForm, setPrinterForm] = useState(initialPrinter);
+  const [quickLocationForm, setQuickLocationForm] = useState(initialQuickLocation);
   const [editingPrinterModelId, setEditingPrinterModelId] = useState<number | null>(null);
   const [printerFilter, setPrinterFilter] = useState<PrinterFilter>("active");
   const [modelFilter, setModelFilter] = useState<ModelFilter>("active");
   const [showModelForm, setShowModelForm] = useState(false);
   const [showPrinterForm, setShowPrinterForm] = useState(false);
+  const [showQuickLocationForm, setShowQuickLocationForm] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -88,10 +100,21 @@ export default function PrintersPage() {
     () => locations.filter(
       (location) => location.is_active
         && activeOrganizationIds.has(location.organization_id)
-        && location.branch_id !== null
-        && activeBranchIds.has(location.branch_id),
+        && (location.branch_id === null || activeBranchIds.has(location.branch_id)),
     ),
     [activeBranchIds, activeOrganizationIds, locations],
+  );
+  const activeOrganizations = useMemo(
+    () => organizations.filter((org) => org.is_active),
+    [organizations],
+  );
+  const quickLocationBranches = useMemo(
+    () => branches.filter(
+      (branch) => branch.is_active
+        && activeOrganizationIds.has(branch.organization_id)
+        && (!quickLocationForm.organization_id || branch.organization_id === Number(quickLocationForm.organization_id)),
+    ),
+    [activeOrganizationIds, branches, quickLocationForm.organization_id],
   );
   const printerCounts = useMemo(() => ({
     active: printers.filter(isActivePrinter).length,
@@ -256,6 +279,41 @@ export default function PrintersPage() {
     }
   }
 
+  async function createQuickLocation() {
+    if (!quickLocationForm.organization_id) {
+      setError(t.organizationRequired);
+      return;
+    }
+    if (!quickLocationForm.room.trim()) {
+      setError(t.roomRequired);
+      return;
+    }
+
+    setSaving(true);
+    setError(null);
+    setSuccess(null);
+    setInfo(null);
+    try {
+      const createdLocation = await postJson<Location>("/api/locations", compactBody({
+        organization_id: Number(quickLocationForm.organization_id),
+        branch_id: quickLocationForm.branch_id ? Number(quickLocationForm.branch_id) : null,
+        department: quickLocationForm.department || null,
+        room: quickLocationForm.room,
+        display_name: null,
+        notes: quickLocationForm.notes || null,
+      }));
+      await loadData();
+      setPrinterForm((current) => ({ ...current, current_location_id: String(createdLocation.id) }));
+      setQuickLocationForm(initialQuickLocation);
+      setShowQuickLocationForm(false);
+      setSuccess(t.roomAddedAndSelected);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unknown error");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <section>
       <PageHeader
@@ -289,6 +347,7 @@ export default function PrintersPage() {
               <th>{t.serialNumber}</th>
               <th>{t.ipAddress}</th>
               <th>{t.location}</th>
+              <th>{t.room}</th>
               <th>{t.status}</th>
               <th>{t.archived}</th>
               <th>{t.open}</th>
@@ -296,7 +355,7 @@ export default function PrintersPage() {
           </thead>
           <tbody>
             {filteredPrinters.length === 0 ? (
-              <EmptyRow colSpan={8} />
+              <EmptyRow colSpan={9} />
             ) : (
               filteredPrinters.map((printer) => (
                 <tr className={isArchivedPrinter(printer) ? "row-muted" : ""} key={printer.id}>
@@ -304,7 +363,8 @@ export default function PrintersPage() {
                   <td>{dash(printer.inventory_number)}</td>
                   <td>{dash(printer.serial_number)}</td>
                   <td>{dash(printer.ip_address)}</td>
-                  <td>{printer.current_location_id ? formatLocationLabel(locationById.get(printer.current_location_id), organizationById, branchById, locale, "short") : dash(null)}</td>
+                  <td>{printer.current_location_id ? formatLocationPlaceLabel(locationById.get(printer.current_location_id), organizationById, branchById) : dash(null)}</td>
+                  <td>{printer.current_location_id ? formatLocationRoom(locationById.get(printer.current_location_id), locale) : dash(null)}</td>
                   <td>{labelPrinterStatus(printer.status, locale)}</td>
                   <td>{isArchivedPrinter(printer) ? t.yes : t.no}</td>
                   <td><Link className="button tiny secondary" href={`/printers/${printer.id}`}>{t.open}</Link></td>
@@ -446,6 +506,24 @@ export default function PrintersPage() {
               <label>{t.ipAddress}<input value={printerForm.ip_address} onChange={(e) => setPrinterForm({ ...printerForm, ip_address: e.target.value })} /></label>
               <label>{t.macAddress}<input value={printerForm.mac_address} onChange={(e) => setPrinterForm({ ...printerForm, mac_address: e.target.value })} /></label>
               <label>{t.location}<select value={printerForm.current_location_id} onChange={(e) => setPrinterForm({ ...printerForm, current_location_id: e.target.value })}><option value=""></option>{activeLocations.map((location) => <option key={location.id} value={location.id}>{formatLocationLabel(location, organizationById, branchById, locale)}</option>)}</select></label>
+              <button className="button secondary" onClick={() => setShowQuickLocationForm((value) => !value)} type="button">
+                {showQuickLocationForm ? `- ${t.room}` : `+ ${t.room}`}
+              </button>
+              {showQuickLocationForm && (
+                <div className="subpanel">
+                  <h3>{t.addRoom}</h3>
+                  <label>{t.organizations}<select required value={quickLocationForm.organization_id} onChange={(e) => setQuickLocationForm({ ...quickLocationForm, organization_id: e.target.value, branch_id: "" })}><option value=""></option>{activeOrganizations.map((org) => <option key={org.id} value={org.id}>{org.name}</option>)}</select></label>
+                  <label>{t.branch}<select value={quickLocationForm.branch_id} onChange={(e) => setQuickLocationForm({ ...quickLocationForm, branch_id: e.target.value })}><option value=""></option>{quickLocationBranches.map((branch) => <option key={branch.id} value={branch.id}>{branch.name}</option>)}</select></label>
+                  <p className="muted">{t.branchOptionalHint}</p>
+                  <label>{t.department}<input placeholder={t.departmentOptional} value={quickLocationForm.department} onChange={(e) => setQuickLocationForm({ ...quickLocationForm, department: e.target.value })} /></label>
+                  <label>{t.room}<input required value={quickLocationForm.room} onChange={(e) => setQuickLocationForm({ ...quickLocationForm, room: e.target.value })} /></label>
+                  <label>{t.notes}<textarea value={quickLocationForm.notes} onChange={(e) => setQuickLocationForm({ ...quickLocationForm, notes: e.target.value })} /></label>
+                  <div className="inline-actions">
+                    <button className="button" disabled={saving} onClick={() => void createQuickLocation()} type="button">{t.createRoom}</button>
+                    <button className="button secondary" disabled={saving} onClick={() => { setShowQuickLocationForm(false); setQuickLocationForm(initialQuickLocation); }} type="button">{t.cancel}</button>
+                  </div>
+                </div>
+              )}
               <label>{t.notes}<textarea value={printerForm.notes} onChange={(e) => setPrinterForm({ ...printerForm, notes: e.target.value })} /></label>
               <button className="button" disabled={saving} type="submit">{t.save}</button>
             </form>

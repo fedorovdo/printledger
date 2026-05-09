@@ -225,16 +225,13 @@ export default function LocationsPage() {
   }
 
   async function saveLocation() {
-    if (!locationForm.branch_id) {
-      throw new Error(t.branchRequired);
-    }
     if (!locationForm.room.trim()) {
       throw new Error(t.roomRequired);
     }
 
     const payload = {
       organization_id: Number(locationForm.organization_id),
-      branch_id: Number(locationForm.branch_id),
+      branch_id: locationForm.branch_id ? Number(locationForm.branch_id) : null,
       department: locationForm.department || null,
       room: locationForm.room,
       display_name: locationForm.display_name || null,
@@ -418,7 +415,8 @@ export default function LocationsPage() {
               <h2>{editingLocationId ? t.editLocation : t.locationEntry}</h2>
               <form onSubmit={(event) => submitForm(event, saveLocation, editingLocationId ? t.locationUpdated : t.created)}>
                 <label>{t.organizations}<select required value={locationForm.organization_id} onChange={(e) => setLocationForm({ ...locationForm, organization_id: e.target.value, branch_id: "" })}><option value=""></option>{selectableOrganizationsForLocation.map((org) => <option key={org.id} value={org.id}>{org.name}</option>)}</select></label>
-                <label>{t.branch}<select required value={locationForm.branch_id} onChange={(e) => setLocationForm({ ...locationForm, branch_id: e.target.value })}><option value=""></option>{selectableBranchesForLocation.map((branch) => <option key={branch.id} value={branch.id}>{branch.name}</option>)}</select></label>
+                <label>{t.branch}<select value={locationForm.branch_id} onChange={(e) => setLocationForm({ ...locationForm, branch_id: e.target.value })}><option value=""></option>{selectableBranchesForLocation.map((branch) => <option key={branch.id} value={branch.id}>{branch.name}</option>)}</select></label>
+                <p className="muted">{t.branchOptionalHint}</p>
                 <label>{t.department}<input placeholder={t.departmentOptional} value={locationForm.department} onChange={(e) => setLocationForm({ ...locationForm, department: e.target.value })} /></label>
                 <label>{t.room}<input required value={locationForm.room} onChange={(e) => setLocationForm({ ...locationForm, room: e.target.value })} /></label>
                 <label>{t.displayName}<input value={locationForm.display_name} onChange={(e) => setLocationForm({ ...locationForm, display_name: e.target.value })} /></label>

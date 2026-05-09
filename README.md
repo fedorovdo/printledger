@@ -382,9 +382,10 @@ Organizations, branches, and locations are managed on `/locations`.
 - Linked records are protected and return `409 Conflict`. If a record is used, deactivate it with `PATCH ... { "is_active": false }` instead of deleting it.
 - Deactivated organizations, branches, and locations remain available for history, but inactive locations are hidden from working printer location selects.
 - Printer creation and printer movement selects show only active locations whose organization and branch are also active.
-- For locations, organization, branch, and room are required. Department is optional.
+- For locations, organization and room are required. Branch and department are optional.
 - If `display_name` is empty, the backend generates it from department and room, for example `каб. 214` or `Бухгалтерия, каб. 214`.
 - Printer location labels now include organization, branch, optional department, and room, so cabinet numbers are visible in printer lists, printer cards, and movement selects.
+- A room can also be created directly from the `/printers` quick-add printer form with `+ Кабинет`; the new room is selected automatically.
 
 No database migrations are used for this stage because `is_active` already exists on these tables.
 
@@ -530,15 +531,8 @@ $orgBody = @{
 } | ConvertTo-Json
 $org = Invoke-RestMethod -Method Post -Uri http://localhost:8000/api/organizations -ContentType "application/json" -Body $orgBody
 
-$branchBody = @{
-  organization_id = $org.id
-  name = "Smoke Branch $suffix"
-} | ConvertTo-Json
-$branch = Invoke-RestMethod -Method Post -Uri http://localhost:8000/api/branches -ContentType "application/json" -Body $branchBody
-
 $locationBody = @{
   organization_id = $org.id
-  branch_id = $branch.id
   department = "IT"
   room = "101"
 } | ConvertTo-Json
@@ -571,7 +565,6 @@ Create another location and move the printer:
 ```powershell
 $targetLocationBody = @{
   organization_id = $org.id
-  branch_id = $branch.id
   department = "Finance"
   room = "202"
 } | ConvertTo-Json

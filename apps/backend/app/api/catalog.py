@@ -283,9 +283,6 @@ def _format_location_display_name(department: str | None, room: str) -> str:
 
 
 def _prepare_location_payload(data: dict[str, Any]) -> dict[str, Any]:
-    if data.get("branch_id") is None:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Филиал обязателен.")
-
     department = clean_text(data.get("department")) or None
     room = clean_text(data.get("room"))
     if not room:
@@ -539,8 +536,6 @@ def patch_location(
 ) -> Location:
     item = _get_or_404(db, Location, item_id)
     updates = payload.model_dump(exclude_unset=True)
-    if "branch_id" in updates and updates["branch_id"] is None:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Филиал обязателен.")
     if "room" in updates and not clean_text(updates["room"]):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Кабинет обязателен.")
     should_prepare_location = any(

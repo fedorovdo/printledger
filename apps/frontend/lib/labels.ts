@@ -210,6 +210,29 @@ function locationRoomLabel(room: string | null | undefined, locale: Locale) {
   return `${locale === "ru" ? "каб." : "room"} ${room}`;
 }
 
+export function formatLocationRoom(location: Location | null | undefined, locale: Locale) {
+  return locationRoomLabel(location?.room, locale) ?? dash(null);
+}
+
+export function formatLocationPlaceLabel(
+  location: Location | null | undefined,
+  organizationMap: ReadonlyMap<number, Organization | string>,
+  branchMap: ReadonlyMap<number, Branch | string>,
+) {
+  if (!location) {
+    return dash(null);
+  }
+
+  const organization = organizationMap.get(location.organization_id);
+  const organizationName = typeof organization === "string" ? organization : organization?.name;
+  const branch = location.branch_id ? branchMap.get(location.branch_id) : undefined;
+  const branchName = typeof branch === "string" ? branch : branch?.name;
+  const leading = branchName || organizationName;
+  const parts = [leading, location.department];
+
+  return parts.filter((part) => part !== undefined && part !== null && part !== "").join(", ") || dash(null);
+}
+
 export function formatLocationLabel(
   location: Location | null | undefined,
   organizationMap: ReadonlyMap<number, Organization | string>,
@@ -227,9 +250,10 @@ export function formatLocationLabel(
   const branchName = typeof branch === "string" ? branch : branch?.name;
   const room = locationRoomLabel(location.room, locale);
   const tail = room ?? location.display_name;
+  const shortLeading = branchName || organizationName;
   const parts = variant === "full"
     ? [organizationName, branchName, location.department, tail]
-    : [branchName, location.department, tail];
+    : [shortLeading, location.department, tail];
 
   return parts
     .filter((part) => part !== undefined && part !== null && part !== "")

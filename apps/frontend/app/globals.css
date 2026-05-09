@@ -296,6 +296,19 @@ tr:last-child td {
   padding: 18px;
 }
 
+.subpanel {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin: 4px 0 8px;
+  padding: 14px;
+  background: #f8fafc;
+}
+
+.subpanel h3 {
+  margin: 0 0 12px;
+  font-size: 16px;
+}
+
 .model-management {
   display: grid;
   gap: 18px;

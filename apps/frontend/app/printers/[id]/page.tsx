@@ -15,6 +15,8 @@ import {
   formatColorRole,
   formatInstalledCartridgeStatus,
   formatLocationLabel,
+  formatLocationPlaceLabel,
+  formatLocationRoom,
   formatPrintTechnology,
   formatRemoveAction,
   formatRepairStatus,
@@ -81,6 +83,9 @@ export default function PrinterCardPage() {
     ])),
     [branchById, locale, locations, organizationById],
   );
+  const currentLocation = printer?.current_location_id
+    ? locations.find((location) => location.id === printer.current_location_id)
+    : undefined;
   const activeOrganizationIds = useMemo(
     () => new Set(organizations.filter((org) => org.is_active).map((org) => org.id)),
     [organizations],
@@ -93,8 +98,7 @@ export default function PrinterCardPage() {
     () => locations.filter(
       (location) => location.is_active
         && activeOrganizationIds.has(location.organization_id)
-        && location.branch_id !== null
-        && activeBranchIds.has(location.branch_id),
+        && (location.branch_id === null || activeBranchIds.has(location.branch_id)),
     ),
     [activeBranchIds, activeOrganizationIds, locations],
   );
@@ -208,7 +212,9 @@ export default function PrinterCardPage() {
               <dt>{t.serialNumber}</dt><dd>{dash(printer.serial_number)}</dd>
               <dt>{t.ipAddress}</dt><dd>{dash(printer.ip_address)}</dd>
               <dt>{t.macAddress}</dt><dd>{dash(printer.mac_address)}</dd>
-              <dt>{t.location}</dt><dd>{printer.current_location_id ? dash(locationName.get(printer.current_location_id)) : dash(null)}</dd>
+              <dt>{t.location}</dt><dd>{formatLocationPlaceLabel(currentLocation, organizationById, branchById)}</dd>
+              <dt>{t.department}</dt><dd>{dash(currentLocation?.department)}</dd>
+              <dt>{t.room}</dt><dd>{formatLocationRoom(currentLocation, locale)}</dd>
               <dt>{t.status}</dt><dd>{labelPrinterStatus(printer.status, locale)}</dd>
               <dt>{t.notes}</dt><dd>{dash(printer.notes)}</dd>
             </dl>
