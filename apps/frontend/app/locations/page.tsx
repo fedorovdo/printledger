@@ -6,7 +6,7 @@ import { SidePanel } from "@/components/SidePanel";
 import { EmptyRow, Message, PageHeader } from "@/components/Ui";
 import { compactBody, deleteJson, fetchJson, patchJson, postJson } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
-import { dash } from "@/lib/labels";
+import { dash, formatLocationDescription } from "@/lib/labels";
 import type { Branch, Location, Organization } from "@/lib/types";
 
 const initialOrgForm = { name: "", short_name: "", notes: "" };
@@ -328,7 +328,7 @@ export default function LocationsPage() {
                 <th>{t.branch}</th>
                 <th>{t.department}</th>
                 <th>{t.room}</th>
-                <th>{t.displayName}</th>
+                <th>{t.locationDescription}</th>
                 <th>{t.active}</th>
                 <th>{t.edit}</th>
                 <th>{t.delete}</th>
@@ -342,7 +342,7 @@ export default function LocationsPage() {
                   <td>{item.branch_id ? dash(branchById.get(item.branch_id)?.name) : dash(null)}</td>
                   <td>{dash(item.department)}</td>
                   <td>{dash(item.room)}</td>
-                  <td>{item.display_name}</td>
+                  <td>{formatLocationDescription(item)}</td>
                   <td>{item.is_active ? t.yes : t.no}</td>
                   <td><button className="button tiny secondary" onClick={() => startEditLocation(item)} type="button">{t.edit}</button></td>
                   <td><button className="button tiny danger" disabled={saving} onClick={() => void deleteRecord(`/api/locations/${item.id}`, t.locationDeleted)} type="button">{t.delete}</button></td>
@@ -447,8 +447,8 @@ export default function LocationsPage() {
           <p className="muted">{t.branchOptionalHint}</p>
           <label>{t.department}<input placeholder={t.departmentOptional} value={locationForm.department} onChange={(e) => setLocationForm({ ...locationForm, department: e.target.value })} /></label>
           <label>{t.room}<input required value={locationForm.room} onChange={(e) => setLocationForm({ ...locationForm, room: e.target.value })} /></label>
-          <label>{t.displayName}<input value={locationForm.display_name} onChange={(e) => setLocationForm({ ...locationForm, display_name: e.target.value })} /></label>
-          <p className="muted">{t.displayNameOptionalHint}</p>
+          <label>{t.locationDescriptionField}<input value={locationForm.display_name} onChange={(e) => setLocationForm({ ...locationForm, display_name: e.target.value })} /></label>
+          <p className="muted">{t.locationDescriptionOptionalHint}</p>
           <label>{t.notes}<textarea value={locationForm.notes} onChange={(e) => setLocationForm({ ...locationForm, notes: e.target.value })} /></label>
           <div className="inline-actions">
             <button className="button" disabled={saving} type="submit">{t.save}</button>

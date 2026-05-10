@@ -14,6 +14,7 @@ import {
   formatColorMode,
   formatColorRole,
   formatInstalledCartridgeStatus,
+  formatLocationDescription,
   formatLocationLabel,
   formatLocationPlaceLabel,
   formatLocationRoom,
@@ -266,6 +267,7 @@ export default function PrinterCardPage() {
               <dt>{t.location}</dt><dd>{formatLocationPlaceLabel(currentLocation, organizationById, branchById)}</dd>
               <dt>{t.department}</dt><dd>{dash(currentLocation?.department)}</dd>
               <dt>{t.room}</dt><dd>{formatLocationRoom(currentLocation, locale)}</dd>
+              <dt>{t.locationDescription}</dt><dd>{formatLocationDescription(currentLocation)}</dd>
               <dt>{t.status}</dt><dd>{labelPrinterStatus(printer.status, locale)}</dd>
               <dt>{t.notes}</dt><dd>{dash(printer.notes)}</dd>
             </dl>

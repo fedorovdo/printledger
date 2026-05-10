@@ -211,7 +211,33 @@ function locationRoomLabel(room: string | null | undefined, locale: Locale) {
 }
 
 export function formatLocationRoom(location: Location | null | undefined, locale: Locale) {
-  return locationRoomLabel(location?.room, locale) ?? dash(null);
+  void locale;
+  return dash(location?.room);
+}
+
+function normalizeLabel(value: string | null | undefined) {
+  return (value ?? "").trim().replace(/\s+/g, " ").toLowerCase();
+}
+
+function isAutoLocationDisplayName(location: Location | null | undefined) {
+  if (!location?.display_name || !location.room) {
+    return false;
+  }
+
+  const displayName = normalizeLabel(location.display_name);
+  const autoRoomOnly = normalizeLabel(`каб. ${location.room}`);
+  const autoWithDepartment = normalizeLabel(
+    location.department ? `${location.department}, каб. ${location.room}` : "",
+  );
+
+  return displayName === autoRoomOnly || (autoWithDepartment !== "" && displayName === autoWithDepartment);
+}
+
+export function formatLocationDescription(location: Location | null | undefined) {
+  if (!location?.display_name || isAutoLocationDisplayName(location)) {
+    return dash(null);
+  }
+  return location.display_name;
 }
 
 export function formatLocationPlaceLabel(
