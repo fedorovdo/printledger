@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 
+import { SidePanel } from "@/components/SidePanel";
 import { EmptyRow, Message, PageHeader } from "@/components/Ui";
 import { compactBody, deleteJson, fetchJson, patchJson, postJson } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
@@ -320,11 +321,11 @@ export default function PrintersPage() {
         title={t.printers}
         action={
           <div className="page-actions">
-            <button className="button secondary" onClick={() => setShowModelForm((value) => !value)} type="button">
-              {showModelForm ? `- ${t.printerModel}` : `+ ${t.printerModel}`}
+            <button className="button secondary" onClick={() => { cancelEditPrinterModel(); setShowModelForm(true); setShowPrinterForm(false); }} type="button">
+              + {t.printerModel}
             </button>
-            <button className="button secondary" onClick={() => setShowPrinterForm((value) => !value)} type="button">
-              {showPrinterForm ? `- ${t.printer}` : `+ ${t.printer}`}
+            <button className="button secondary" onClick={() => { setShowPrinterForm(true); setShowModelForm(false); }} type="button">
+              + {t.printer}
             </button>
           </div>
         }
@@ -375,161 +376,168 @@ export default function PrintersPage() {
         </table>
       </div>
 
-      {(showModelForm || showPrinterForm) && (
-        <div className="form-grid">
-          {showModelForm && (
-            <div className="model-management">
-              <form className="panel" onSubmit={(event) => submitForm(event, async () => {
-                if (editingPrinterModelId) {
-                  await patchJson<PrinterModel>(`/api/printer-models/${editingPrinterModelId}`, compactBody({
-                    ...modelForm,
-                    cartridge_slots_count: Number(modelForm.cartridge_slots_count),
-                  }));
-                  setEditingPrinterModelId(null);
-                  setModelForm(initialPrinterModel);
-                  await loadData();
-                  return;
-                }
-                const createdModel = await postJson<PrinterModel>("/api/printer-models", compactBody({
-                  ...modelForm,
-                  cartridge_slots_count: Number(modelForm.cartridge_slots_count),
-                }));
-                setModelForm(initialPrinterModel);
-                setShowModelForm(false);
-                setShowPrinterForm(true);
-                setPrinterForm({ ...initialPrinter, printer_model_id: String(createdModel.id) });
-                await loadData();
-              }, editingPrinterModelId ? t.modelUpdated : modelCreatedMessage)}>
-                <h2>{editingPrinterModelId ? t.editPrinterModel : t.addPrinterModel}</h2>
-                <p className="muted">{t.printerModelCatalogHint}</p>
-                <label>{t.vendor}<input list="printer-vendor-suggestions" value={modelForm.vendor} onChange={(e) => setModelForm({ ...modelForm, vendor: e.target.value })} /></label>
-                <datalist id="printer-vendor-suggestions">{vendorSuggestions.map((vendor) => <option key={vendor} value={vendor} />)}</datalist>
-                <label>{t.modelName}<input required value={modelForm.name} onChange={(e) => setModelForm({ ...modelForm, name: e.target.value })} /></label>
-                <label>{t.printTechnology}<select value={modelForm.print_technology} onChange={(e) => setModelForm({ ...modelForm, print_technology: e.target.value })}><option value="laser">{formatPrintTechnology("laser", locale)}</option><option value="inkjet">{formatPrintTechnology("inkjet", locale)}</option><option value="other">{formatPrintTechnology("other", locale)}</option></select></label>
-                <label>{t.colorMode}<select value={modelForm.color_mode} onChange={(e) => setModelForm({ ...modelForm, color_mode: e.target.value })}><option value="mono">{formatColorMode("mono", locale)}</option><option value="color">{formatColorMode("color", locale)}</option></select></label>
-                <label>{t.slots}<input min="1" type="number" value={modelForm.cartridge_slots_count} onChange={(e) => setModelForm({ ...modelForm, cartridge_slots_count: e.target.value })} /></label>
-                <label>{t.notes}<textarea value={modelForm.notes} onChange={(e) => setModelForm({ ...modelForm, notes: e.target.value })} /></label>
-                <div className="inline-actions">
-                  <button className="button" disabled={saving} type="submit">{t.save}</button>
-                  {editingPrinterModelId && <button className="button secondary" onClick={cancelEditPrinterModel} type="button">{t.cancel}</button>}
-                </div>
-              </form>
-              <section className="catalog-section">
-                <h2>{t.printerModelCatalog}</h2>
-                <div className="filter-bar compact-filter">
-                  <button className={modelFilter === "active" ? "active" : ""} onClick={() => setModelFilter("active")} type="button">{t.activeModels} ({printerModelCounts.active})</button>
-                  <button className={modelFilter === "inactive" ? "active" : ""} onClick={() => setModelFilter("inactive")} type="button">{t.inactiveModels} ({printerModelCounts.inactive})</button>
-                  <button className={modelFilter === "all" ? "active" : ""} onClick={() => setModelFilter("all")} type="button">{t.allModels} ({printerModelCounts.all})</button>
-                </div>
-                <div className="table-wrap">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>{t.vendor}</th>
-                        <th>{t.modelName}</th>
-                        <th>{t.printTechnology}</th>
-                        <th>{t.colorMode}</th>
-                        <th>{t.active}</th>
-                        <th>{t.edit}</th>
-                        <th>{t.delete}</th>
-                        <th>{t.status}</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredPrinterModels.length === 0 ? (
-                        <EmptyRow colSpan={8} />
-                      ) : (
-                        filteredPrinterModels.map((model) => (
-                          <tr className={!model.is_active ? "row-muted" : ""} key={model.id}>
-                            <td>{dash(model.vendor)}</td>
-                            <td>{model.name}</td>
-                            <td>{formatPrintTechnology(model.print_technology, locale)}</td>
-                            <td>{formatColorMode(model.color_mode, locale)}</td>
-                            <td>{model.is_active ? t.yes : t.no}</td>
-                            <td><button className="button tiny secondary" onClick={() => startEditPrinterModel(model)} type="button">{t.edit}</button></td>
-                            <td><button className="button tiny danger" disabled={saving} onClick={() => void deletePrinterModel(model)} type="button">{t.delete}</button></td>
-                            <td><button className="button tiny secondary" disabled={saving} onClick={() => void togglePrinterModelActive(model)} type="button">{model.is_active ? t.deactivate : t.reactivate}</button></td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </section>
+      <section className="catalog-section">
+        <h2>{t.printerModelCatalog}</h2>
+        <div className="filter-bar compact-filter">
+          <button className={modelFilter === "active" ? "active" : ""} onClick={() => setModelFilter("active")} type="button">{t.activeModels} ({printerModelCounts.active})</button>
+          <button className={modelFilter === "inactive" ? "active" : ""} onClick={() => setModelFilter("inactive")} type="button">{t.inactiveModels} ({printerModelCounts.inactive})</button>
+          <button className={modelFilter === "all" ? "active" : ""} onClick={() => setModelFilter("all")} type="button">{t.allModels} ({printerModelCounts.all})</button>
+        </div>
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>{t.vendor}</th>
+                <th>{t.modelName}</th>
+                <th>{t.printTechnology}</th>
+                <th>{t.colorMode}</th>
+                <th>{t.active}</th>
+                <th>{t.edit}</th>
+                <th>{t.delete}</th>
+                <th>{t.status}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredPrinterModels.length === 0 ? (
+                <EmptyRow colSpan={8} />
+              ) : (
+                filteredPrinterModels.map((model) => (
+                  <tr className={!model.is_active ? "row-muted" : ""} key={model.id}>
+                    <td>{dash(model.vendor)}</td>
+                    <td>{model.name}</td>
+                    <td>{formatPrintTechnology(model.print_technology, locale)}</td>
+                    <td>{formatColorMode(model.color_mode, locale)}</td>
+                    <td>{model.is_active ? t.yes : t.no}</td>
+                    <td><button className="button tiny secondary" onClick={() => startEditPrinterModel(model)} type="button">{t.edit}</button></td>
+                    <td><button className="button tiny danger" disabled={saving} onClick={() => void deletePrinterModel(model)} type="button">{t.delete}</button></td>
+                    <td><button className="button tiny secondary" disabled={saving} onClick={() => void togglePrinterModelActive(model)} type="button">{model.is_active ? t.deactivate : t.reactivate}</button></td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <SidePanel
+        onClose={() => { setShowModelForm(false); cancelEditPrinterModel(); }}
+        open={showModelForm}
+        title={editingPrinterModelId ? t.editPrinterModel : t.addPrinterModel}
+      >
+        <form className="panel" onSubmit={(event) => submitForm(event, async () => {
+          if (editingPrinterModelId) {
+            await patchJson<PrinterModel>(`/api/printer-models/${editingPrinterModelId}`, compactBody({
+              ...modelForm,
+              cartridge_slots_count: Number(modelForm.cartridge_slots_count),
+            }));
+            setEditingPrinterModelId(null);
+            setModelForm(initialPrinterModel);
+            setShowModelForm(false);
+            await loadData();
+            return;
+          }
+          const createdModel = await postJson<PrinterModel>("/api/printer-models", compactBody({
+            ...modelForm,
+            cartridge_slots_count: Number(modelForm.cartridge_slots_count),
+          }));
+          setModelForm(initialPrinterModel);
+          setShowModelForm(false);
+          setShowPrinterForm(true);
+          setPrinterForm({ ...initialPrinter, printer_model_id: String(createdModel.id) });
+          await loadData();
+        }, editingPrinterModelId ? t.modelUpdated : modelCreatedMessage)}>
+          <p className="muted">{t.printerModelCatalogHint}</p>
+          <label>{t.vendor}<input list="printer-vendor-suggestions" value={modelForm.vendor} onChange={(e) => setModelForm({ ...modelForm, vendor: e.target.value })} /></label>
+          <datalist id="printer-vendor-suggestions">{vendorSuggestions.map((vendor) => <option key={vendor} value={vendor} />)}</datalist>
+          <label>{t.modelName}<input required value={modelForm.name} onChange={(e) => setModelForm({ ...modelForm, name: e.target.value })} /></label>
+          <label>{t.printTechnology}<select value={modelForm.print_technology} onChange={(e) => setModelForm({ ...modelForm, print_technology: e.target.value })}><option value="laser">{formatPrintTechnology("laser", locale)}</option><option value="inkjet">{formatPrintTechnology("inkjet", locale)}</option><option value="other">{formatPrintTechnology("other", locale)}</option></select></label>
+          <label>{t.colorMode}<select value={modelForm.color_mode} onChange={(e) => setModelForm({ ...modelForm, color_mode: e.target.value })}><option value="mono">{formatColorMode("mono", locale)}</option><option value="color">{formatColorMode("color", locale)}</option></select></label>
+          <label>{t.slots}<input min="1" type="number" value={modelForm.cartridge_slots_count} onChange={(e) => setModelForm({ ...modelForm, cartridge_slots_count: e.target.value })} /></label>
+          <label>{t.notes}<textarea value={modelForm.notes} onChange={(e) => setModelForm({ ...modelForm, notes: e.target.value })} /></label>
+          <div className="inline-actions">
+            <button className="button" disabled={saving} type="submit">{t.save}</button>
+            <button className="button secondary" onClick={() => { setShowModelForm(false); cancelEditPrinterModel(); }} type="button">{t.cancel}</button>
+          </div>
+        </form>
+      </SidePanel>
+
+      <SidePanel
+        onClose={() => { setShowPrinterForm(false); setShowQuickLocationForm(false); setQuickLocationForm(initialQuickLocation); }}
+        open={showPrinterForm}
+        title={t.addPrinter}
+      >
+        <form className="panel" onSubmit={(event) => submitForm(event, async () => {
+          const previousPrinterFilter = printerFilter;
+          const createdPrinter = await postJson<Printer>("/api/printers", compactBody({
+            ...printerForm,
+            printer_model_id: Number(printerForm.printer_model_id),
+            current_location_id: printerForm.current_location_id ? Number(printerForm.current_location_id) : null,
+          }));
+          setPrinterForm(initialPrinter);
+          setShowPrinterForm(false);
+          setShowQuickLocationForm(false);
+          setQuickLocationForm(initialQuickLocation);
+          const reloadedPrinters = await loadData();
+          const createdInList = reloadedPrinters.some((printer) => printer.id === createdPrinter.id);
+          if (isActivePrinter(createdPrinter)) {
+            setPrinterFilter("active");
+          }
+          if (!createdInList) {
+            return {
+              type: "info",
+              message: locale === "ru"
+                ? "Принтер создан, но не найден в загруженном списке. Обновите страницу или проверьте фильтр."
+                : "Printer was created but was not found in the loaded list. Refresh the page or check the filter.",
+            };
+          }
+          if (isActivePrinter(createdPrinter) && previousPrinterFilter !== "active") {
+            return {
+              type: "info",
+              message: locale === "ru"
+                ? "Принтер создан. Переключил фильтр на \"Активные\", чтобы новая запись была видна в таблице."
+                : "Printer created. Switched the filter to \"Active\" so the new record is visible in the table.",
+            };
+          }
+          if (!isActivePrinter(createdPrinter)) {
+            return {
+              type: "info",
+              message: locale === "ru"
+                ? "Принтер создан, но скрыт текущим фильтром, потому что он не в статусе \"В работе\"."
+                : "Printer was created but is hidden by the current filter because it is not in work.",
+            };
+          }
+        }, t.created)}>
+          <label>{t.printerModel}<select required value={printerForm.printer_model_id} onChange={(e) => setPrinterForm({ ...printerForm, printer_model_id: e.target.value })}><option value=""></option>{activePrinterModels.map((model) => <option key={model.id} value={model.id}>{model.name}</option>)}</select></label>
+          <label>{t.serialNumber}<input value={printerForm.serial_number} onChange={(e) => setPrinterForm({ ...printerForm, serial_number: e.target.value })} /></label>
+          <label>{t.inventoryNumber}<input value={printerForm.inventory_number} onChange={(e) => setPrinterForm({ ...printerForm, inventory_number: e.target.value })} /></label>
+          <label>{t.ipAddress}<input value={printerForm.ip_address} onChange={(e) => setPrinterForm({ ...printerForm, ip_address: e.target.value })} /></label>
+          <label>{t.macAddress}<input value={printerForm.mac_address} onChange={(e) => setPrinterForm({ ...printerForm, mac_address: e.target.value })} /></label>
+          <label>{t.location}<select value={printerForm.current_location_id} onChange={(e) => setPrinterForm({ ...printerForm, current_location_id: e.target.value })}><option value=""></option>{activeLocations.map((location) => <option key={location.id} value={location.id}>{formatLocationLabel(location, organizationById, branchById, locale)}</option>)}</select></label>
+          <button className="button secondary" onClick={() => setShowQuickLocationForm((value) => !value)} type="button">
+            {showQuickLocationForm ? `- ${t.room}` : `+ ${t.room}`}
+          </button>
+          {showQuickLocationForm && (
+            <div className="subpanel">
+              <h3>{t.addRoom}</h3>
+              <label>{t.organizations}<select required value={quickLocationForm.organization_id} onChange={(e) => setQuickLocationForm({ ...quickLocationForm, organization_id: e.target.value, branch_id: "" })}><option value=""></option>{activeOrganizations.map((org) => <option key={org.id} value={org.id}>{org.name}</option>)}</select></label>
+              <label>{t.branch}<select value={quickLocationForm.branch_id} onChange={(e) => setQuickLocationForm({ ...quickLocationForm, branch_id: e.target.value })}><option value=""></option>{quickLocationBranches.map((branch) => <option key={branch.id} value={branch.id}>{branch.name}</option>)}</select></label>
+              <p className="muted">{t.branchOptionalHint}</p>
+              <label>{t.department}<input placeholder={t.departmentOptional} value={quickLocationForm.department} onChange={(e) => setQuickLocationForm({ ...quickLocationForm, department: e.target.value })} /></label>
+              <label>{t.room}<input required value={quickLocationForm.room} onChange={(e) => setQuickLocationForm({ ...quickLocationForm, room: e.target.value })} /></label>
+              <label>{t.notes}<textarea value={quickLocationForm.notes} onChange={(e) => setQuickLocationForm({ ...quickLocationForm, notes: e.target.value })} /></label>
+              <div className="inline-actions">
+                <button className="button" disabled={saving} onClick={() => void createQuickLocation()} type="button">{t.createRoom}</button>
+                <button className="button secondary" disabled={saving} onClick={() => { setShowQuickLocationForm(false); setQuickLocationForm(initialQuickLocation); }} type="button">{t.cancel}</button>
+              </div>
             </div>
           )}
-
-          {showPrinterForm && (
-            <form className="panel" onSubmit={(event) => submitForm(event, async () => {
-              const previousPrinterFilter = printerFilter;
-              const createdPrinter = await postJson<Printer>("/api/printers", compactBody({
-                ...printerForm,
-                printer_model_id: Number(printerForm.printer_model_id),
-                current_location_id: printerForm.current_location_id ? Number(printerForm.current_location_id) : null,
-              }));
-              setPrinterForm(initialPrinter);
-              setShowPrinterForm(false);
-              const reloadedPrinters = await loadData();
-              const createdInList = reloadedPrinters.some((printer) => printer.id === createdPrinter.id);
-              if (isActivePrinter(createdPrinter)) {
-                setPrinterFilter("active");
-              }
-              if (!createdInList) {
-                return {
-                  type: "info",
-                  message: locale === "ru"
-                    ? "Принтер создан, но не найден в загруженном списке. Обновите страницу или проверьте фильтр."
-                    : "Printer was created but was not found in the loaded list. Refresh the page or check the filter.",
-                };
-              }
-              if (isActivePrinter(createdPrinter) && previousPrinterFilter !== "active") {
-                return {
-                  type: "info",
-                  message: locale === "ru"
-                    ? "Принтер создан. Переключил фильтр на \"Активные\", чтобы новая запись была видна в таблице."
-                    : "Printer created. Switched the filter to \"Active\" so the new record is visible in the table.",
-                };
-              }
-              if (!isActivePrinter(createdPrinter)) {
-                return {
-                  type: "info",
-                  message: locale === "ru"
-                    ? "Принтер создан, но скрыт текущим фильтром, потому что он не в статусе \"В работе\"."
-                    : "Printer was created but is hidden by the current filter because it is not in work.",
-                };
-              }
-            }, t.created)}>
-              <h2>{t.addPrinter}</h2>
-              <label>{t.printerModel}<select required value={printerForm.printer_model_id} onChange={(e) => setPrinterForm({ ...printerForm, printer_model_id: e.target.value })}><option value=""></option>{activePrinterModels.map((model) => <option key={model.id} value={model.id}>{model.name}</option>)}</select></label>
-              <label>{t.serialNumber}<input value={printerForm.serial_number} onChange={(e) => setPrinterForm({ ...printerForm, serial_number: e.target.value })} /></label>
-              <label>{t.inventoryNumber}<input value={printerForm.inventory_number} onChange={(e) => setPrinterForm({ ...printerForm, inventory_number: e.target.value })} /></label>
-              <label>{t.ipAddress}<input value={printerForm.ip_address} onChange={(e) => setPrinterForm({ ...printerForm, ip_address: e.target.value })} /></label>
-              <label>{t.macAddress}<input value={printerForm.mac_address} onChange={(e) => setPrinterForm({ ...printerForm, mac_address: e.target.value })} /></label>
-              <label>{t.location}<select value={printerForm.current_location_id} onChange={(e) => setPrinterForm({ ...printerForm, current_location_id: e.target.value })}><option value=""></option>{activeLocations.map((location) => <option key={location.id} value={location.id}>{formatLocationLabel(location, organizationById, branchById, locale)}</option>)}</select></label>
-              <button className="button secondary" onClick={() => setShowQuickLocationForm((value) => !value)} type="button">
-                {showQuickLocationForm ? `- ${t.room}` : `+ ${t.room}`}
-              </button>
-              {showQuickLocationForm && (
-                <div className="subpanel">
-                  <h3>{t.addRoom}</h3>
-                  <label>{t.organizations}<select required value={quickLocationForm.organization_id} onChange={(e) => setQuickLocationForm({ ...quickLocationForm, organization_id: e.target.value, branch_id: "" })}><option value=""></option>{activeOrganizations.map((org) => <option key={org.id} value={org.id}>{org.name}</option>)}</select></label>
-                  <label>{t.branch}<select value={quickLocationForm.branch_id} onChange={(e) => setQuickLocationForm({ ...quickLocationForm, branch_id: e.target.value })}><option value=""></option>{quickLocationBranches.map((branch) => <option key={branch.id} value={branch.id}>{branch.name}</option>)}</select></label>
-                  <p className="muted">{t.branchOptionalHint}</p>
-                  <label>{t.department}<input placeholder={t.departmentOptional} value={quickLocationForm.department} onChange={(e) => setQuickLocationForm({ ...quickLocationForm, department: e.target.value })} /></label>
-                  <label>{t.room}<input required value={quickLocationForm.room} onChange={(e) => setQuickLocationForm({ ...quickLocationForm, room: e.target.value })} /></label>
-                  <label>{t.notes}<textarea value={quickLocationForm.notes} onChange={(e) => setQuickLocationForm({ ...quickLocationForm, notes: e.target.value })} /></label>
-                  <div className="inline-actions">
-                    <button className="button" disabled={saving} onClick={() => void createQuickLocation()} type="button">{t.createRoom}</button>
-                    <button className="button secondary" disabled={saving} onClick={() => { setShowQuickLocationForm(false); setQuickLocationForm(initialQuickLocation); }} type="button">{t.cancel}</button>
-                  </div>
-                </div>
-              )}
-              <label>{t.notes}<textarea value={printerForm.notes} onChange={(e) => setPrinterForm({ ...printerForm, notes: e.target.value })} /></label>
-              <button className="button" disabled={saving} type="submit">{t.save}</button>
-            </form>
-          )}
-        </div>
-      )}
+          <label>{t.notes}<textarea value={printerForm.notes} onChange={(e) => setPrinterForm({ ...printerForm, notes: e.target.value })} /></label>
+          <div className="inline-actions">
+            <button className="button" disabled={saving} type="submit">{t.save}</button>
+            <button className="button secondary" onClick={() => { setShowPrinterForm(false); setShowQuickLocationForm(false); setQuickLocationForm(initialQuickLocation); }} type="button">{t.cancel}</button>
+          </div>
+        </form>
+      </SidePanel>
     </section>
   );
 }

@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 
+import { SidePanel } from "@/components/SidePanel";
 import { EmptyRow, Message, PageHeader } from "@/components/Ui";
 import { compactBody, deleteJson, fetchJson, patchJson, postJson } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
@@ -147,6 +148,8 @@ export default function LocationsPage() {
     setEditingOrgId(item.id);
     setOrgForm({ name: item.name, short_name: item.short_name ?? "", notes: item.notes ?? "" });
     setShowOrgForm(true);
+    setShowBranchForm(false);
+    setShowLocationForm(false);
     setError(null);
     setSuccess(null);
   }
@@ -160,6 +163,8 @@ export default function LocationsPage() {
       notes: item.notes ?? "",
     });
     setShowBranchForm(true);
+    setShowOrgForm(false);
+    setShowLocationForm(false);
     setError(null);
     setSuccess(null);
   }
@@ -175,6 +180,8 @@ export default function LocationsPage() {
       notes: item.notes ?? "",
     });
     setShowLocationForm(true);
+    setShowOrgForm(false);
+    setShowBranchForm(false);
     setError(null);
     setSuccess(null);
   }
@@ -202,10 +209,12 @@ export default function LocationsPage() {
         notes: orgForm.notes || null,
       });
       resetOrgForm();
+      setShowOrgForm(false);
       return;
     }
     await postJson<Organization>("/api/organizations", compactBody(orgForm));
     resetOrgForm();
+    setShowOrgForm(false);
   }
 
   async function saveBranch() {
@@ -217,11 +226,13 @@ export default function LocationsPage() {
         notes: branchForm.notes || null,
       });
       resetBranchForm();
+      setShowBranchForm(false);
       return;
     }
     const payload = compactBody({ ...branchForm, organization_id: Number(branchForm.organization_id) });
     await postJson<Branch>("/api/branches", payload);
     resetBranchForm();
+    setShowBranchForm(false);
   }
 
   async function saveLocation() {
@@ -241,10 +252,12 @@ export default function LocationsPage() {
     if (editingLocationId) {
       await patchJson<Location>(`/api/locations/${editingLocationId}`, payload);
       resetLocationForm();
+      setShowLocationForm(false);
       return;
     }
     await postJson<Location>("/api/locations", compactBody(payload));
     resetLocationForm();
+    setShowLocationForm(false);
   }
 
   async function deleteRecord(path: string, successMessage: string) {
@@ -290,14 +303,14 @@ export default function LocationsPage() {
         title={t.locations}
         action={
           <div className="page-actions">
-            <button className="button secondary" onClick={() => setShowOrgForm((value) => !value)} type="button">
-              {showOrgForm ? `- ${t.organization}` : `+ ${t.organization}`}
+            <button className="button secondary" onClick={() => { resetOrgForm(); setShowOrgForm(true); setShowBranchForm(false); setShowLocationForm(false); }} type="button">
+              + {t.organization}
             </button>
-            <button className="button secondary" onClick={() => setShowBranchForm((value) => !value)} type="button">
-              {showBranchForm ? `- ${t.branch}` : `+ ${t.branch}`}
+            <button className="button secondary" onClick={() => { resetBranchForm(); setShowBranchForm(true); setShowOrgForm(false); setShowLocationForm(false); }} type="button">
+              + {t.branch}
             </button>
-            <button className="button secondary" onClick={() => setShowLocationForm((value) => !value)} type="button">
-              {showLocationForm ? `- ${t.locationEntry}` : `+ ${t.locationEntry}`}
+            <button className="button secondary" onClick={() => { resetLocationForm(); setShowLocationForm(true); setShowOrgForm(false); setShowBranchForm(false); }} type="button">
+              + {t.locationEntry}
             </button>
           </div>
         }
@@ -341,96 +354,105 @@ export default function LocationsPage() {
         </div>
       </div>
 
-      {(showOrgForm || showBranchForm || showLocationForm) && (
-        <div className="section-grid">
-          {showOrgForm && (
-            <div className="panel">
-              <h2>{editingOrgId ? t.editOrganization : t.organization}</h2>
-              <form onSubmit={(event) => submitForm(event, saveOrganization, editingOrgId ? t.organizationUpdated : t.created)}>
-                <label>{t.displayName}<input required value={orgForm.name} onChange={(e) => setOrgForm({ ...orgForm, name: e.target.value })} /></label>
-                <label>{t.shortName}<input value={orgForm.short_name} onChange={(e) => setOrgForm({ ...orgForm, short_name: e.target.value })} /></label>
-                <label>{t.notes}<textarea value={orgForm.notes} onChange={(e) => setOrgForm({ ...orgForm, notes: e.target.value })} /></label>
-                <div className="inline-actions">
-                  <button className="button" disabled={saving} type="submit">{t.save}</button>
-                  {editingOrgId && <button className="button secondary" onClick={resetOrgForm} type="button">{t.cancel}</button>}
-                </div>
-              </form>
-              <DirectoryFilterBar counts={orgCounts} filter={orgFilter} onChange={setOrgFilter} />
-              <div className="table-wrap compact">
-                <table>
-                  <thead><tr><th>{t.displayName}</th><th>{t.shortName}</th><th>{t.active}</th><th>{t.edit}</th><th>{t.delete}</th><th>{t.status}</th></tr></thead>
-                  <tbody>
-                    {filteredOrganizations.length === 0 ? <EmptyRow colSpan={6} /> : filteredOrganizations.map((item) => (
-                      <tr className={!item.is_active ? "row-muted" : ""} key={item.id}>
-                        <td>{item.name}</td>
-                        <td>{dash(item.short_name)}</td>
-                        <td>{item.is_active ? t.yes : t.no}</td>
-                        <td><button className="button tiny secondary" onClick={() => startEditOrganization(item)} type="button">{t.edit}</button></td>
-                        <td><button className="button tiny danger" disabled={saving} onClick={() => void deleteRecord(`/api/organizations/${item.id}`, t.organizationDeleted)} type="button">{t.delete}</button></td>
-                        <td><button className="button tiny secondary" disabled={saving} onClick={() => void toggleActive(`/api/organizations/${item.id}`, item.is_active)} type="button">{item.is_active ? t.deactivate : t.reactivate}</button></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          {showBranchForm && (
-            <div className="panel">
-              <h2>{editingBranchId ? t.editBranch : t.branch}</h2>
-              <form onSubmit={(event) => submitForm(event, saveBranch, editingBranchId ? t.branchUpdated : t.created)}>
-                <label>{t.organizations}<select required value={branchForm.organization_id} onChange={(e) => setBranchForm({ ...branchForm, organization_id: e.target.value })}><option value=""></option>{selectableOrganizationsForBranch.map((org) => <option key={org.id} value={org.id}>{org.name}</option>)}</select></label>
-                <label>{t.displayName}<input required value={branchForm.name} onChange={(e) => setBranchForm({ ...branchForm, name: e.target.value })} /></label>
-                <label>{t.address}<input value={branchForm.address} onChange={(e) => setBranchForm({ ...branchForm, address: e.target.value })} /></label>
-                <label>{t.notes}<textarea value={branchForm.notes} onChange={(e) => setBranchForm({ ...branchForm, notes: e.target.value })} /></label>
-                <div className="inline-actions">
-                  <button className="button" disabled={saving} type="submit">{t.save}</button>
-                  {editingBranchId && <button className="button secondary" onClick={resetBranchForm} type="button">{t.cancel}</button>}
-                </div>
-              </form>
-              <DirectoryFilterBar counts={branchCounts} filter={branchFilter} onChange={setBranchFilter} />
-              <div className="table-wrap compact">
-                <table>
-                  <thead><tr><th>{t.organizations}</th><th>{t.displayName}</th><th>{t.active}</th><th>{t.edit}</th><th>{t.delete}</th><th>{t.status}</th></tr></thead>
-                  <tbody>
-                    {filteredBranches.length === 0 ? <EmptyRow colSpan={6} /> : filteredBranches.map((item) => (
-                      <tr className={!item.is_active ? "row-muted" : ""} key={item.id}>
-                        <td>{dash(organizationById.get(item.organization_id)?.name)}</td>
-                        <td>{item.name}</td>
-                        <td>{item.is_active ? t.yes : t.no}</td>
-                        <td><button className="button tiny secondary" onClick={() => startEditBranch(item)} type="button">{t.edit}</button></td>
-                        <td><button className="button tiny danger" disabled={saving} onClick={() => void deleteRecord(`/api/branches/${item.id}`, t.branchDeleted)} type="button">{t.delete}</button></td>
-                        <td><button className="button tiny secondary" disabled={saving} onClick={() => void toggleActive(`/api/branches/${item.id}`, item.is_active)} type="button">{item.is_active ? t.deactivate : t.reactivate}</button></td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          {showLocationForm && (
-            <div className="panel">
-              <h2>{editingLocationId ? t.editLocation : t.locationEntry}</h2>
-              <form onSubmit={(event) => submitForm(event, saveLocation, editingLocationId ? t.locationUpdated : t.created)}>
-                <label>{t.organizations}<select required value={locationForm.organization_id} onChange={(e) => setLocationForm({ ...locationForm, organization_id: e.target.value, branch_id: "" })}><option value=""></option>{selectableOrganizationsForLocation.map((org) => <option key={org.id} value={org.id}>{org.name}</option>)}</select></label>
-                <label>{t.branch}<select value={locationForm.branch_id} onChange={(e) => setLocationForm({ ...locationForm, branch_id: e.target.value })}><option value=""></option>{selectableBranchesForLocation.map((branch) => <option key={branch.id} value={branch.id}>{branch.name}</option>)}</select></label>
-                <p className="muted">{t.branchOptionalHint}</p>
-                <label>{t.department}<input placeholder={t.departmentOptional} value={locationForm.department} onChange={(e) => setLocationForm({ ...locationForm, department: e.target.value })} /></label>
-                <label>{t.room}<input required value={locationForm.room} onChange={(e) => setLocationForm({ ...locationForm, room: e.target.value })} /></label>
-                <label>{t.displayName}<input value={locationForm.display_name} onChange={(e) => setLocationForm({ ...locationForm, display_name: e.target.value })} /></label>
-                <p className="muted">{t.displayNameOptionalHint}</p>
-                <label>{t.notes}<textarea value={locationForm.notes} onChange={(e) => setLocationForm({ ...locationForm, notes: e.target.value })} /></label>
-                <div className="inline-actions">
-                  <button className="button" disabled={saving} type="submit">{t.save}</button>
-                  {editingLocationId && <button className="button secondary" onClick={resetLocationForm} type="button">{t.cancel}</button>}
-                </div>
-              </form>
-            </div>
-          )}
+      <div className="section-grid">
+        <div className="panel">
+          <h2>{t.organizations}</h2>
+          <DirectoryFilterBar counts={orgCounts} filter={orgFilter} onChange={setOrgFilter} />
+          <div className="table-wrap compact">
+            <table>
+              <thead><tr><th>{t.displayName}</th><th>{t.shortName}</th><th>{t.active}</th><th>{t.edit}</th><th>{t.delete}</th><th>{t.status}</th></tr></thead>
+              <tbody>
+                {filteredOrganizations.length === 0 ? <EmptyRow colSpan={6} /> : filteredOrganizations.map((item) => (
+                  <tr className={!item.is_active ? "row-muted" : ""} key={item.id}>
+                    <td>{item.name}</td>
+                    <td>{dash(item.short_name)}</td>
+                    <td>{item.is_active ? t.yes : t.no}</td>
+                    <td><button className="button tiny secondary" onClick={() => startEditOrganization(item)} type="button">{t.edit}</button></td>
+                    <td><button className="button tiny danger" disabled={saving} onClick={() => void deleteRecord(`/api/organizations/${item.id}`, t.organizationDeleted)} type="button">{t.delete}</button></td>
+                    <td><button className="button tiny secondary" disabled={saving} onClick={() => void toggleActive(`/api/organizations/${item.id}`, item.is_active)} type="button">{item.is_active ? t.deactivate : t.reactivate}</button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
-      )}
+
+        <div className="panel">
+          <h2>{t.branches}</h2>
+          <DirectoryFilterBar counts={branchCounts} filter={branchFilter} onChange={setBranchFilter} />
+          <div className="table-wrap compact">
+            <table>
+              <thead><tr><th>{t.organizations}</th><th>{t.displayName}</th><th>{t.active}</th><th>{t.edit}</th><th>{t.delete}</th><th>{t.status}</th></tr></thead>
+              <tbody>
+                {filteredBranches.length === 0 ? <EmptyRow colSpan={6} /> : filteredBranches.map((item) => (
+                  <tr className={!item.is_active ? "row-muted" : ""} key={item.id}>
+                    <td>{dash(organizationById.get(item.organization_id)?.name)}</td>
+                    <td>{item.name}</td>
+                    <td>{item.is_active ? t.yes : t.no}</td>
+                    <td><button className="button tiny secondary" onClick={() => startEditBranch(item)} type="button">{t.edit}</button></td>
+                    <td><button className="button tiny danger" disabled={saving} onClick={() => void deleteRecord(`/api/branches/${item.id}`, t.branchDeleted)} type="button">{t.delete}</button></td>
+                    <td><button className="button tiny secondary" disabled={saving} onClick={() => void toggleActive(`/api/branches/${item.id}`, item.is_active)} type="button">{item.is_active ? t.deactivate : t.reactivate}</button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <SidePanel
+        onClose={() => { setShowOrgForm(false); resetOrgForm(); }}
+        open={showOrgForm}
+        title={editingOrgId ? t.editOrganization : t.addOrganization}
+      >
+        <form className="panel" onSubmit={(event) => submitForm(event, saveOrganization, editingOrgId ? t.organizationUpdated : t.created)}>
+          <label>{t.displayName}<input required value={orgForm.name} onChange={(e) => setOrgForm({ ...orgForm, name: e.target.value })} /></label>
+          <label>{t.shortName}<input value={orgForm.short_name} onChange={(e) => setOrgForm({ ...orgForm, short_name: e.target.value })} /></label>
+          <label>{t.notes}<textarea value={orgForm.notes} onChange={(e) => setOrgForm({ ...orgForm, notes: e.target.value })} /></label>
+          <div className="inline-actions">
+            <button className="button" disabled={saving} type="submit">{t.save}</button>
+            <button className="button secondary" onClick={() => { setShowOrgForm(false); resetOrgForm(); }} type="button">{t.cancel}</button>
+          </div>
+        </form>
+      </SidePanel>
+
+      <SidePanel
+        onClose={() => { setShowBranchForm(false); resetBranchForm(); }}
+        open={showBranchForm}
+        title={editingBranchId ? t.editBranch : t.addBranch}
+      >
+        <form className="panel" onSubmit={(event) => submitForm(event, saveBranch, editingBranchId ? t.branchUpdated : t.created)}>
+          <label>{t.organizations}<select required value={branchForm.organization_id} onChange={(e) => setBranchForm({ ...branchForm, organization_id: e.target.value })}><option value=""></option>{selectableOrganizationsForBranch.map((org) => <option key={org.id} value={org.id}>{org.name}</option>)}</select></label>
+          <label>{t.displayName}<input required value={branchForm.name} onChange={(e) => setBranchForm({ ...branchForm, name: e.target.value })} /></label>
+          <label>{t.address}<input value={branchForm.address} onChange={(e) => setBranchForm({ ...branchForm, address: e.target.value })} /></label>
+          <label>{t.notes}<textarea value={branchForm.notes} onChange={(e) => setBranchForm({ ...branchForm, notes: e.target.value })} /></label>
+          <div className="inline-actions">
+            <button className="button" disabled={saving} type="submit">{t.save}</button>
+            <button className="button secondary" onClick={() => { setShowBranchForm(false); resetBranchForm(); }} type="button">{t.cancel}</button>
+          </div>
+        </form>
+      </SidePanel>
+
+      <SidePanel
+        onClose={() => { setShowLocationForm(false); resetLocationForm(); }}
+        open={showLocationForm}
+        title={editingLocationId ? t.editLocation : t.addLocation}
+      >
+        <form className="panel" onSubmit={(event) => submitForm(event, saveLocation, editingLocationId ? t.locationUpdated : t.created)}>
+          <label>{t.organizations}<select required value={locationForm.organization_id} onChange={(e) => setLocationForm({ ...locationForm, organization_id: e.target.value, branch_id: "" })}><option value=""></option>{selectableOrganizationsForLocation.map((org) => <option key={org.id} value={org.id}>{org.name}</option>)}</select></label>
+          <label>{t.branch}<select value={locationForm.branch_id} onChange={(e) => setLocationForm({ ...locationForm, branch_id: e.target.value })}><option value=""></option>{selectableBranchesForLocation.map((branch) => <option key={branch.id} value={branch.id}>{branch.name}</option>)}</select></label>
+          <p className="muted">{t.branchOptionalHint}</p>
+          <label>{t.department}<input placeholder={t.departmentOptional} value={locationForm.department} onChange={(e) => setLocationForm({ ...locationForm, department: e.target.value })} /></label>
+          <label>{t.room}<input required value={locationForm.room} onChange={(e) => setLocationForm({ ...locationForm, room: e.target.value })} /></label>
+          <label>{t.displayName}<input value={locationForm.display_name} onChange={(e) => setLocationForm({ ...locationForm, display_name: e.target.value })} /></label>
+          <p className="muted">{t.displayNameOptionalHint}</p>
+          <label>{t.notes}<textarea value={locationForm.notes} onChange={(e) => setLocationForm({ ...locationForm, notes: e.target.value })} /></label>
+          <div className="inline-actions">
+            <button className="button" disabled={saving} type="submit">{t.save}</button>
+            <button className="button secondary" onClick={() => { setShowLocationForm(false); resetLocationForm(); }} type="button">{t.cancel}</button>
+          </div>
+        </form>
+      </SidePanel>
     </section>
   );
 }

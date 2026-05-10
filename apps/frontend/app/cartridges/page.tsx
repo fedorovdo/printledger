@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 
+import { SidePanel } from "@/components/SidePanel";
 import { EmptyRow, Message, PageHeader } from "@/components/Ui";
 import { compactBody, deleteJson, fetchJson, patchJson, postJson } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
@@ -110,6 +111,7 @@ export default function CartridgesPage() {
         setSuccess(t.created);
       }
       setModelForm(initialModel);
+      setShowModelForm(false);
       await loadData();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
@@ -205,11 +207,11 @@ export default function CartridgesPage() {
       <PageHeader
         action={(
           <div className="page-actions">
-            <button className="button secondary" onClick={() => setShowModelForm((value) => !value)} type="button">
-              {showModelForm ? `- ${t.cartridgeModel}` : `+ ${t.cartridgeModel}`}
+            <button className="button secondary" onClick={() => { cancelEditModel(); setShowModelForm(true); setShowStockInForm(false); }} type="button">
+              + {t.cartridgeModel}
             </button>
-            <button className="button secondary" onClick={() => setShowStockInForm((value) => !value)} type="button">
-              {showStockInForm ? `- ${t.stockIn}` : `+ ${t.stockIn}`}
+            <button className="button secondary" onClick={() => { setShowStockInForm(true); setShowModelForm(false); }} type="button">
+              + {t.stockIn}
             </button>
           </div>
         )}
@@ -257,85 +259,89 @@ export default function CartridgesPage() {
         </table>
       </div>
 
-      {(showModelForm || showStockInForm) && (
-        <div className="form-grid">
-          {showModelForm && (
-            <div className="model-management">
-              <form className="panel" onSubmit={createModel}>
-                <h2>{editingModelId ? t.editCartridgeModel : t.addCartridgeModel}</h2>
-                <p className="muted">{t.cartridgeModelCatalogHint}</p>
-                <label>{t.vendor}<input list="cartridge-vendor-suggestions" value={modelForm.vendor} onChange={(e) => setModelForm({ ...modelForm, vendor: e.target.value })} /></label>
-                <datalist id="cartridge-vendor-suggestions">{vendorSuggestions.map((vendor) => <option key={vendor} value={vendor} />)}</datalist>
-                <label>{t.modelName}<input required value={modelForm.model_name} onChange={(e) => setModelForm({ ...modelForm, model_name: e.target.value })} /></label>
-                <label>{t.sku}<input value={modelForm.purchase_sku} onChange={(e) => setModelForm({ ...modelForm, purchase_sku: e.target.value })} /></label>
-                <label>{t.cartridgeType}<select value={modelForm.cartridge_type} onChange={(e) => setModelForm({ ...modelForm, cartridge_type: e.target.value })}><option value="toner">{formatCartridgeType("toner", locale)}</option><option value="ink">{formatCartridgeType("ink", locale)}</option><option value="other">{formatCartridgeType("other", locale)}</option></select></label>
-                <label>{t.minStockLevel}<input min="0" type="number" value={modelForm.min_stock_level} onChange={(e) => setModelForm({ ...modelForm, min_stock_level: e.target.value })} /></label>
-                <label>{t.notes}<textarea value={modelForm.notes} onChange={(e) => setModelForm({ ...modelForm, notes: e.target.value })} /></label>
-                <div className="inline-actions">
-                  <button className="button" disabled={saving} type="submit">{t.save}</button>
-                  {editingModelId && <button className="button secondary" onClick={cancelEditModel} type="button">{t.cancel}</button>}
-                </div>
-              </form>
-              <section className="catalog-section">
-                <h2>{t.cartridgeModelCatalog}</h2>
-                <div className="filter-bar compact-filter">
-                  <button className={modelFilter === "active" ? "active" : ""} onClick={() => setModelFilter("active")} type="button">{t.activeModels} ({modelCounts.active})</button>
-                  <button className={modelFilter === "inactive" ? "active" : ""} onClick={() => setModelFilter("inactive")} type="button">{t.inactiveModels} ({modelCounts.inactive})</button>
-                  <button className={modelFilter === "all" ? "active" : ""} onClick={() => setModelFilter("all")} type="button">{t.allModels} ({modelCounts.all})</button>
-                </div>
-                <div className="table-wrap">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>{t.vendor}</th>
-                        <th>{t.modelName}</th>
-                        <th>{t.sku}</th>
-                        <th>{t.cartridgeType}</th>
-                        <th>{t.minStockLevel}</th>
-                        <th>{t.active}</th>
-                        <th>{t.edit}</th>
-                        <th>{t.delete}</th>
-                        <th>{t.status}</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {filteredModels.length === 0 ? (
-                        <EmptyRow colSpan={9} />
-                      ) : (
-                        filteredModels.map((model) => (
-                          <tr className={!model.is_active ? "row-muted" : ""} key={model.id}>
-                            <td>{dash(model.vendor)}</td>
-                            <td>{model.model_name}</td>
-                            <td>{dash(model.purchase_sku)}</td>
-                            <td>{formatCartridgeType(model.cartridge_type, locale)}</td>
-                            <td>{model.min_stock_level}</td>
-                            <td>{model.is_active ? t.yes : t.no}</td>
-                            <td><button className="button tiny secondary" onClick={() => startEditModel(model)} type="button">{t.edit}</button></td>
-                            <td><button className="button tiny danger" disabled={saving} onClick={() => void deleteModel(model)} type="button">{t.delete}</button></td>
-                            <td><button className="button tiny secondary" disabled={saving} onClick={() => void toggleModelActive(model)} type="button">{model.is_active ? t.deactivate : t.reactivate}</button></td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </section>
-            </div>
-          )}
-
-          {showStockInForm && (
-            <form className="panel" onSubmit={stockIn}>
-              <h2>{t.stockIn}</h2>
-              <label>{t.cartridgeModel}<select required value={stockInForm.cartridge_model_id} onChange={(e) => setStockInForm({ ...stockInForm, cartridge_model_id: e.target.value })}><option value=""></option>{activeModels.map((model) => <option key={model.id} value={model.id}>{model.model_name}</option>)}</select></label>
-              <label>{t.quantity}<input min="1" required type="number" value={stockInForm.quantity} onChange={(e) => setStockInForm({ ...stockInForm, quantity: e.target.value })} /></label>
-              <label>{t.condition}<select value={stockInForm.item_condition} onChange={(e) => setStockInForm({ ...stockInForm, item_condition: e.target.value })}><option value="new">{formatCartridgeCondition("new", locale)}</option><option value="refilled">{formatCartridgeCondition("refilled", locale)}</option></select></label>
-              <label>{t.reason}<input value={stockInForm.reason} onChange={(e) => setStockInForm({ ...stockInForm, reason: e.target.value })} /></label>
-              <label>{t.comment}<textarea value={stockInForm.comment} onChange={(e) => setStockInForm({ ...stockInForm, comment: e.target.value })} /></label>
-              <button className="button" disabled={saving} type="submit">{t.save}</button>
-            </form>
-          )}
+      <section className="catalog-section">
+        <h2>{t.cartridgeModelCatalog}</h2>
+        <div className="filter-bar compact-filter">
+          <button className={modelFilter === "active" ? "active" : ""} onClick={() => setModelFilter("active")} type="button">{t.activeModels} ({modelCounts.active})</button>
+          <button className={modelFilter === "inactive" ? "active" : ""} onClick={() => setModelFilter("inactive")} type="button">{t.inactiveModels} ({modelCounts.inactive})</button>
+          <button className={modelFilter === "all" ? "active" : ""} onClick={() => setModelFilter("all")} type="button">{t.allModels} ({modelCounts.all})</button>
         </div>
-      )}
+        <div className="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>{t.vendor}</th>
+                <th>{t.modelName}</th>
+                <th>{t.sku}</th>
+                <th>{t.cartridgeType}</th>
+                <th>{t.minStockLevel}</th>
+                <th>{t.active}</th>
+                <th>{t.edit}</th>
+                <th>{t.delete}</th>
+                <th>{t.status}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredModels.length === 0 ? (
+                <EmptyRow colSpan={9} />
+              ) : (
+                filteredModels.map((model) => (
+                  <tr className={!model.is_active ? "row-muted" : ""} key={model.id}>
+                    <td>{dash(model.vendor)}</td>
+                    <td>{model.model_name}</td>
+                    <td>{dash(model.purchase_sku)}</td>
+                    <td>{formatCartridgeType(model.cartridge_type, locale)}</td>
+                    <td>{model.min_stock_level}</td>
+                    <td>{model.is_active ? t.yes : t.no}</td>
+                    <td><button className="button tiny secondary" onClick={() => startEditModel(model)} type="button">{t.edit}</button></td>
+                    <td><button className="button tiny danger" disabled={saving} onClick={() => void deleteModel(model)} type="button">{t.delete}</button></td>
+                    <td><button className="button tiny secondary" disabled={saving} onClick={() => void toggleModelActive(model)} type="button">{model.is_active ? t.deactivate : t.reactivate}</button></td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <SidePanel
+        onClose={() => { setShowModelForm(false); cancelEditModel(); }}
+        open={showModelForm}
+        title={editingModelId ? t.editCartridgeModel : t.addCartridgeModel}
+      >
+        <form className="panel" onSubmit={createModel}>
+          <p className="muted">{t.cartridgeModelCatalogHint}</p>
+          <label>{t.vendor}<input list="cartridge-vendor-suggestions" value={modelForm.vendor} onChange={(e) => setModelForm({ ...modelForm, vendor: e.target.value })} /></label>
+          <datalist id="cartridge-vendor-suggestions">{vendorSuggestions.map((vendor) => <option key={vendor} value={vendor} />)}</datalist>
+          <label>{t.modelName}<input required value={modelForm.model_name} onChange={(e) => setModelForm({ ...modelForm, model_name: e.target.value })} /></label>
+          <label>{t.sku}<input value={modelForm.purchase_sku} onChange={(e) => setModelForm({ ...modelForm, purchase_sku: e.target.value })} /></label>
+          <label>{t.cartridgeType}<select value={modelForm.cartridge_type} onChange={(e) => setModelForm({ ...modelForm, cartridge_type: e.target.value })}><option value="toner">{formatCartridgeType("toner", locale)}</option><option value="ink">{formatCartridgeType("ink", locale)}</option><option value="other">{formatCartridgeType("other", locale)}</option></select></label>
+          <label>{t.minStockLevel}<input min="0" type="number" value={modelForm.min_stock_level} onChange={(e) => setModelForm({ ...modelForm, min_stock_level: e.target.value })} /></label>
+          <label>{t.notes}<textarea value={modelForm.notes} onChange={(e) => setModelForm({ ...modelForm, notes: e.target.value })} /></label>
+          <div className="inline-actions">
+            <button className="button" disabled={saving} type="submit">{t.save}</button>
+            <button className="button secondary" onClick={() => { setShowModelForm(false); cancelEditModel(); }} type="button">{t.cancel}</button>
+          </div>
+        </form>
+      </SidePanel>
+
+      <SidePanel
+        onClose={() => { setShowStockInForm(false); setStockInForm(initialStockIn); }}
+        open={showStockInForm}
+        title={t.stockIn}
+      >
+        <form className="panel" onSubmit={stockIn}>
+          <label>{t.cartridgeModel}<select required value={stockInForm.cartridge_model_id} onChange={(e) => setStockInForm({ ...stockInForm, cartridge_model_id: e.target.value })}><option value=""></option>{activeModels.map((model) => <option key={model.id} value={model.id}>{model.model_name}</option>)}</select></label>
+          <label>{t.quantity}<input min="1" required type="number" value={stockInForm.quantity} onChange={(e) => setStockInForm({ ...stockInForm, quantity: e.target.value })} /></label>
+          <label>{t.condition}<select value={stockInForm.item_condition} onChange={(e) => setStockInForm({ ...stockInForm, item_condition: e.target.value })}><option value="new">{formatCartridgeCondition("new", locale)}</option><option value="refilled">{formatCartridgeCondition("refilled", locale)}</option></select></label>
+          <label>{t.reason}<input value={stockInForm.reason} onChange={(e) => setStockInForm({ ...stockInForm, reason: e.target.value })} /></label>
+          <label>{t.comment}<textarea value={stockInForm.comment} onChange={(e) => setStockInForm({ ...stockInForm, comment: e.target.value })} /></label>
+          <div className="inline-actions">
+            <button className="button" disabled={saving} type="submit">{t.save}</button>
+            <button className="button secondary" onClick={() => { setShowStockInForm(false); setStockInForm(initialStockIn); }} type="button">{t.cancel}</button>
+          </div>
+        </form>
+      </SidePanel>
     </section>
   );
 }

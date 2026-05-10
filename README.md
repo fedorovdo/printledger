@@ -161,9 +161,9 @@ Open the app at `http://localhost:3000`.
 Pages:
 
 - `http://localhost:3000/` - dashboard with backend, database, cartridge model, printer, and archived printer status cards.
-- `http://localhost:3000/cartridges` - compact cartridge stock list with collapsed quick forms for cartridge model creation and stock-in.
-- `http://localhost:3000/printers` - printer list with Active/In repair/Archive/All filters and collapsed quick-add forms for printer models and printers.
-- `http://localhost:3000/locations` - location directory management with the location list first, collapsed organization/branch/location forms, and room-aware labels.
+- `http://localhost:3000/cartridges` - compact cartridge stock list with quick forms for cartridge model creation and stock-in opened in a right-side panel.
+- `http://localhost:3000/printers` - printer list with Active/In repair/Archive/All filters and quick-add forms for printer models and printers opened in a right-side panel.
+- `http://localhost:3000/locations` - location directory management with the location list first, organization/branch/location forms opened in a right-side panel, and room-aware labels.
 - `http://localhost:3000/operations` - cartridge inventory transaction list.
 - `http://localhost:3000/backup` - authenticated backup list, create, download, restore, and delete actions.
 - `http://localhost:3000/about` - application version, backend/database status, environment, and documentation hint.
@@ -366,8 +366,8 @@ Manufacturer/vendor is currently a text field with frontend suggestions from exi
 
 Printer and cartridge model catalogs can be managed from the frontend:
 
-- `/printers` -> `+ Printer model` shows the printer model form and catalog table together.
-- `/cartridges` -> `+ Cartridge model` shows the cartridge model form and catalog table together.
+- `/printers` -> `+ Printer model` opens the printer model form in a right-side panel; the catalog table stays on the page.
+- `/cartridges` -> `+ Cartridge model` opens the cartridge model form in a right-side panel; the catalog table stays on the page.
 - Models can be edited with `PATCH /api/printer-models/{id}` and `PATCH /api/cartridge-models/{id}`.
 - Unused models can be deleted.
 - Linked models are protected: deleting a printer model used by printers or compatibility rows returns `409 Conflict`; deleting a cartridge model used by inventory history, installed cartridges, cartridge history, or compatibility rows returns `409 Conflict`.
@@ -380,6 +380,7 @@ No database migrations are used for this stage. Existing linked data is preserve
 
 Organizations, branches, and locations are managed on `/locations`.
 
+- Add/edit forms open in a right-side panel, so the location list stays visible and long tables do not push forms out of view.
 - Records can be edited with `PATCH /api/organizations/{id}`, `PATCH /api/branches/{id}`, and `PATCH /api/locations/{id}`.
 - Unused records can be physically deleted.
 - Linked records are protected and return `409 Conflict`. If a record is used, deactivate it with `PATCH ... { "is_active": false }` instead of deleting it.
