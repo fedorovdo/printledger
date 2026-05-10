@@ -354,11 +354,13 @@ export default function LocationsPage() {
         </div>
       </div>
 
-      <div className="section-grid">
-        <div className="panel">
+      <section className="catalog-section">
+        <h2>{t.directories}</h2>
+
+        <div className="panel wide">
           <h2>{t.organizations}</h2>
           <DirectoryFilterBar counts={orgCounts} filter={orgFilter} onChange={setOrgFilter} />
-          <div className="table-wrap compact">
+          <div className="table-wrap">
             <table>
               <thead><tr><th>{t.displayName}</th><th>{t.shortName}</th><th>{t.active}</th><th>{t.edit}</th><th>{t.delete}</th><th>{t.status}</th></tr></thead>
               <tbody>
@@ -377,17 +379,18 @@ export default function LocationsPage() {
           </div>
         </div>
 
-        <div className="panel">
+        <div className="panel wide">
           <h2>{t.branches}</h2>
           <DirectoryFilterBar counts={branchCounts} filter={branchFilter} onChange={setBranchFilter} />
-          <div className="table-wrap compact">
+          <div className="table-wrap">
             <table>
-              <thead><tr><th>{t.organizations}</th><th>{t.displayName}</th><th>{t.active}</th><th>{t.edit}</th><th>{t.delete}</th><th>{t.status}</th></tr></thead>
+              <thead><tr><th>{t.organizations}</th><th>{t.displayName}</th><th>{t.address}</th><th>{t.active}</th><th>{t.edit}</th><th>{t.delete}</th><th>{t.status}</th></tr></thead>
               <tbody>
-                {filteredBranches.length === 0 ? <EmptyRow colSpan={6} /> : filteredBranches.map((item) => (
+                {filteredBranches.length === 0 ? <EmptyRow colSpan={7} /> : filteredBranches.map((item) => (
                   <tr className={!item.is_active ? "row-muted" : ""} key={item.id}>
                     <td>{dash(organizationById.get(item.organization_id)?.name)}</td>
                     <td>{item.name}</td>
+                    <td>{dash(item.address)}</td>
                     <td>{item.is_active ? t.yes : t.no}</td>
                     <td><button className="button tiny secondary" onClick={() => startEditBranch(item)} type="button">{t.edit}</button></td>
                     <td><button className="button tiny danger" disabled={saving} onClick={() => void deleteRecord(`/api/branches/${item.id}`, t.branchDeleted)} type="button">{t.delete}</button></td>
@@ -398,7 +401,7 @@ export default function LocationsPage() {
             </table>
           </div>
         </div>
-      </div>
+      </section>
 
       <SidePanel
         onClose={() => { setShowOrgForm(false); resetOrgForm(); }}

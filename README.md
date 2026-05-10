@@ -381,6 +381,7 @@ No database migrations are used for this stage. Existing linked data is preserve
 Organizations, branches, and locations are managed on `/locations`.
 
 - Add/edit forms open in a right-side panel, so the location list stays visible and long tables do not push forms out of view.
+- Organization and branch directories are shown below the location list as full-width tables for easier reading and editing.
 - Records can be edited with `PATCH /api/organizations/{id}`, `PATCH /api/branches/{id}`, and `PATCH /api/locations/{id}`.
 - Unused records can be physically deleted.
 - Linked records are protected and return `409 Conflict`. If a record is used, deactivate it with `PATCH ... { "is_active": false }` instead of deleting it.
