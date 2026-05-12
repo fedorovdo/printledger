@@ -168,6 +168,8 @@ Pages:
 - `http://localhost:3000/backup` - authenticated backup list, create, download, restore, and delete actions.
 - `http://localhost:3000/about` - application version, backend/database status, environment, and documentation hint.
 
+Table row actions use compact icon buttons with hover tooltips to keep printer, cartridge, location, model, and backup lists narrow and easy to scan.
+
 The UI uses `NEXT_PUBLIC_API_BASE_URL`. In dev it points to `http://localhost:8000`; in production it is empty so the browser uses same-origin `/api` and `/health` through nginx.
 RU is the default language; switch to EN from the top-right language control.
 Frontend enum labels are localized for RU/EN, while API payload values remain stable English enum values such as `new`, `refilled`, `laser`, and `written_off`.

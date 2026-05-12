@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 
+import { IconButton } from "@/components/IconButton";
 import { SidePanel } from "@/components/SidePanel";
 import { EmptyRow, Message, PageHeader } from "@/components/Ui";
 import { compactBody, deleteJson, fetchJson, patchJson, postJson } from "@/lib/api";
@@ -344,9 +345,9 @@ export default function LocationsPage() {
                   <td>{dash(item.room)}</td>
                   <td>{formatLocationDescription(item)}</td>
                   <td>{item.is_active ? t.yes : t.no}</td>
-                  <td><button className="button tiny secondary" onClick={() => startEditLocation(item)} type="button">{t.edit}</button></td>
-                  <td><button className="button tiny danger" disabled={saving} onClick={() => void deleteRecord(`/api/locations/${item.id}`, t.locationDeleted)} type="button">{t.delete}</button></td>
-                  <td><button className="button tiny secondary" disabled={saving} onClick={() => void toggleActive(`/api/locations/${item.id}`, item.is_active)} type="button">{item.is_active ? t.deactivate : t.reactivate}</button></td>
+                  <td><IconButton icon="✎" label={t.edit} onClick={() => startEditLocation(item)} /></td>
+                  <td><IconButton disabled={saving} icon="🗑" label={t.delete} onClick={() => void deleteRecord(`/api/locations/${item.id}`, t.locationDeleted)} variant="danger" /></td>
+                  <td><IconButton disabled={saving} icon={item.is_active ? "⊘" : "↩"} label={item.is_active ? t.deactivate : t.reactivate} onClick={() => void toggleActive(`/api/locations/${item.id}`, item.is_active)} variant={item.is_active ? "warning" : "success"} /></td>
                 </tr>
               ))}
             </tbody>
@@ -369,9 +370,9 @@ export default function LocationsPage() {
                     <td>{item.name}</td>
                     <td>{dash(item.short_name)}</td>
                     <td>{item.is_active ? t.yes : t.no}</td>
-                    <td><button className="button tiny secondary" onClick={() => startEditOrganization(item)} type="button">{t.edit}</button></td>
-                    <td><button className="button tiny danger" disabled={saving} onClick={() => void deleteRecord(`/api/organizations/${item.id}`, t.organizationDeleted)} type="button">{t.delete}</button></td>
-                    <td><button className="button tiny secondary" disabled={saving} onClick={() => void toggleActive(`/api/organizations/${item.id}`, item.is_active)} type="button">{item.is_active ? t.deactivate : t.reactivate}</button></td>
+                    <td><IconButton icon="✎" label={t.edit} onClick={() => startEditOrganization(item)} /></td>
+                    <td><IconButton disabled={saving} icon="🗑" label={t.delete} onClick={() => void deleteRecord(`/api/organizations/${item.id}`, t.organizationDeleted)} variant="danger" /></td>
+                    <td><IconButton disabled={saving} icon={item.is_active ? "⊘" : "↩"} label={item.is_active ? t.deactivate : t.reactivate} onClick={() => void toggleActive(`/api/organizations/${item.id}`, item.is_active)} variant={item.is_active ? "warning" : "success"} /></td>
                   </tr>
                 ))}
               </tbody>
@@ -392,9 +393,9 @@ export default function LocationsPage() {
                     <td>{item.name}</td>
                     <td>{dash(item.address)}</td>
                     <td>{item.is_active ? t.yes : t.no}</td>
-                    <td><button className="button tiny secondary" onClick={() => startEditBranch(item)} type="button">{t.edit}</button></td>
-                    <td><button className="button tiny danger" disabled={saving} onClick={() => void deleteRecord(`/api/branches/${item.id}`, t.branchDeleted)} type="button">{t.delete}</button></td>
-                    <td><button className="button tiny secondary" disabled={saving} onClick={() => void toggleActive(`/api/branches/${item.id}`, item.is_active)} type="button">{item.is_active ? t.deactivate : t.reactivate}</button></td>
+                    <td><IconButton icon="✎" label={t.edit} onClick={() => startEditBranch(item)} /></td>
+                    <td><IconButton disabled={saving} icon="🗑" label={t.delete} onClick={() => void deleteRecord(`/api/branches/${item.id}`, t.branchDeleted)} variant="danger" /></td>
+                    <td><IconButton disabled={saving} icon={item.is_active ? "⊘" : "↩"} label={item.is_active ? t.deactivate : t.reactivate} onClick={() => void toggleActive(`/api/branches/${item.id}`, item.is_active)} variant={item.is_active ? "warning" : "success"} /></td>
                   </tr>
                 ))}
               </tbody>

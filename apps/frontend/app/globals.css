@@ -266,6 +266,74 @@ h2 {
   gap: 6px;
 }
 
+.icon-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.icon-button {
+  display: inline-grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border: 1px solid var(--border-strong);
+  border-radius: 7px;
+  background: #ffffff;
+  color: var(--foreground);
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.icon-button:hover {
+  border-color: var(--accent);
+  background: #f8fafc;
+  color: var(--accent-strong);
+}
+
+.icon-button:disabled,
+.icon-button[aria-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.icon-button-danger {
+  color: #b91c1c;
+}
+
+.icon-button-danger:hover {
+  border-color: #ef4444;
+  background: #fff1f2;
+  color: #991b1b;
+}
+
+.icon-button-warning {
+  color: #92400e;
+}
+
+.icon-button-warning:hover {
+  border-color: #f59e0b;
+  background: #fffbeb;
+  color: #78350f;
+}
+
+.icon-button-success {
+  color: #166534;
+}
+
+.icon-button-success:hover {
+  border-color: #22c55e;
+  background: #f0fdf4;
+  color: #14532d;
+}
+
+.icon-button-muted {
+  color: var(--muted);
+}
+
 .table-wrap.compact {
   margin-top: 16px;
 }

@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 
+import { IconButton } from "@/components/IconButton";
 import { SidePanel } from "@/components/SidePanel";
 import { EmptyRow, Message, PageHeader } from "@/components/Ui";
 import { compactBody, deleteJson, fetchJson, patchJson, postJson } from "@/lib/api";
@@ -480,8 +481,8 @@ export default function PrintersPage() {
                   <td>{printer.current_location_id ? formatLocationRoom(locationById.get(printer.current_location_id), locale) : dash(null)}</td>
                   <td>{labelPrinterStatus(printer.status, locale)}</td>
                   <td>{isArchivedPrinter(printer) ? t.yes : t.no}</td>
-                  <td><button className="button tiny secondary" disabled={isArchivedPrinter(printer)} onClick={() => openLocationPanel(printer)} title={isArchivedPrinter(printer) ? t.archivedPrinterMoveDisabled : undefined} type="button">{t.locationAction}</button></td>
-                  <td><Link className="button tiny secondary" href={`/printers/${printer.id}`}>{t.open}</Link></td>
+                  <td><IconButton disabled={isArchivedPrinter(printer)} icon="📍" label={t.locationAction} onClick={() => openLocationPanel(printer)} title={isArchivedPrinter(printer) ? t.archivedPrinterMoveDisabled : t.locationAction} /></td>
+                  <td><IconButton href={`/printers/${printer.id}`} icon="↗" label={t.open} /></td>
                 </tr>
               ))
             )}
@@ -521,9 +522,9 @@ export default function PrintersPage() {
                     <td>{formatPrintTechnology(model.print_technology, locale)}</td>
                     <td>{formatColorMode(model.color_mode, locale)}</td>
                     <td>{model.is_active ? t.yes : t.no}</td>
-                    <td><button className="button tiny secondary" onClick={() => startEditPrinterModel(model)} type="button">{t.edit}</button></td>
-                    <td><button className="button tiny danger" disabled={saving} onClick={() => void deletePrinterModel(model)} type="button">{t.delete}</button></td>
-                    <td><button className="button tiny secondary" disabled={saving} onClick={() => void togglePrinterModelActive(model)} type="button">{model.is_active ? t.deactivate : t.reactivate}</button></td>
+                    <td><IconButton icon="✎" label={t.edit} onClick={() => startEditPrinterModel(model)} /></td>
+                    <td><IconButton disabled={saving} icon="🗑" label={t.delete} onClick={() => void deletePrinterModel(model)} variant="danger" /></td>
+                    <td><IconButton disabled={saving} icon={model.is_active ? "⊘" : "↩"} label={model.is_active ? t.deactivate : t.reactivate} onClick={() => void togglePrinterModelActive(model)} variant={model.is_active ? "warning" : "success"} /></td>
                   </tr>
                 ))
               )}

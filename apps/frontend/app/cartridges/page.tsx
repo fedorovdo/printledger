@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 
+import { IconButton } from "@/components/IconButton";
 import { SidePanel } from "@/components/SidePanel";
 import { EmptyRow, Message, PageHeader } from "@/components/Ui";
 import { compactBody, deleteJson, fetchJson, patchJson, postJson } from "@/lib/api";
@@ -427,10 +428,10 @@ export default function CartridgesPage() {
                     <td>{item.min_stock_level}</td>
                     <td><span className={isLow ? "badge warning" : "badge ok"}>{isLow ? t.lowStock : t.ok}</span></td>
                     <td>
-                      <div className="table-actions">
-                        <Link className="button tiny secondary" href={`/cartridges/${item.cartridge_model_id}`}>{t.open}</Link>
-                        <button className="button tiny secondary" disabled={modelInactive} onClick={() => openStockInPanel(item)} title={modelInactive ? t.inactiveModel : undefined} type="button">{t.stockIn}</button>
-                        <button className="button tiny secondary" disabled={replacementDisabled} onClick={() => openInstallPanel(item)} title={disabledTitle} type="button">{t.replacement}</button>
+                      <div className="icon-actions">
+                        <IconButton href={`/cartridges/${item.cartridge_model_id}`} icon="↗" label={t.open} />
+                        <IconButton disabled={modelInactive} icon="📦" label={t.stockIn} onClick={() => openStockInPanel(item)} title={modelInactive ? t.inactiveModel : t.stockIn} />
+                        <IconButton disabled={replacementDisabled} icon="⇄" label={t.replacement} onClick={() => openInstallPanel(item)} title={disabledTitle ?? t.replacement} />
                       </div>
                     </td>
                   </tr>
@@ -475,9 +476,9 @@ export default function CartridgesPage() {
                     <td>{formatCartridgeType(model.cartridge_type, locale)}</td>
                     <td>{model.min_stock_level}</td>
                     <td>{model.is_active ? t.yes : t.no}</td>
-                    <td><button className="button tiny secondary" onClick={() => startEditModel(model)} type="button">{t.edit}</button></td>
-                    <td><button className="button tiny danger" disabled={saving} onClick={() => void deleteModel(model)} type="button">{t.delete}</button></td>
-                    <td><button className="button tiny secondary" disabled={saving} onClick={() => void toggleModelActive(model)} type="button">{model.is_active ? t.deactivate : t.reactivate}</button></td>
+                    <td><IconButton icon="✎" label={t.edit} onClick={() => startEditModel(model)} /></td>
+                    <td><IconButton disabled={saving} icon="🗑" label={t.delete} onClick={() => void deleteModel(model)} variant="danger" /></td>
+                    <td><IconButton disabled={saving} icon={model.is_active ? "⊘" : "↩"} label={model.is_active ? t.deactivate : t.reactivate} onClick={() => void toggleModelActive(model)} variant={model.is_active ? "warning" : "success"} /></td>
                   </tr>
                 ))
               )}

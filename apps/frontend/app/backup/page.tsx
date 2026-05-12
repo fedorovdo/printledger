@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 
+import { IconButton } from "@/components/IconButton";
 import { EmptyRow, Message, PageHeader } from "@/components/Ui";
 import { deleteJson, downloadBlob, fetchJson, postJson } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
@@ -187,30 +188,21 @@ export default function BackupPage() {
                   <td>{backup.filename}</td>
                   <td>{backup.modified_at ? new Date(backup.modified_at).toLocaleString() : dash(null)}</td>
                   <td>{formatSize(backup.size_bytes)}</td>
+                  <td><IconButton icon="↓" label={t.download} onClick={() => void downloadBackup(backup)} /></td>
                   <td>
-                    <button className="button tiny secondary" onClick={() => void downloadBackup(backup)} type="button">
-                      {t.download}
-                    </button>
-                  </td>
-                  <td>
-                    <button
-                      className="button tiny secondary"
+                    <IconButton
+                      icon="♻"
+                      label={t.restore}
                       onClick={() => {
                         setSelectedRestore(backup);
                         setRestoreConfirmation("");
                         setSuccess(null);
                         setError(null);
                       }}
-                      type="button"
-                    >
-                      {t.restore}
-                    </button>
+                      variant="warning"
+                    />
                   </td>
-                  <td>
-                    <button className="button tiny danger" onClick={() => void deleteBackup(backup)} type="button">
-                      {t.delete}
-                    </button>
-                  </td>
+                  <td><IconButton icon="🗑" label={t.delete} onClick={() => void deleteBackup(backup)} variant="danger" /></td>
                 </tr>
               ))
             )}
