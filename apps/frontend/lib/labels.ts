@@ -290,6 +290,9 @@ export function formatPrinterLabel(
   printer: Printer,
   printerModelMap: ReadonlyMap<number, PrinterModel | string>,
   locationMap: ReadonlyMap<number, Location | string>,
+  organizationMap?: ReadonlyMap<number, Organization | string>,
+  branchMap?: ReadonlyMap<number, Branch | string>,
+  locale: Locale = "ru",
 ) {
   const printerModel = printerModelMap.get(printer.printer_model_id);
   const modelName = typeof printerModel === "string" ? printerModel : printerModel?.name;
@@ -298,12 +301,21 @@ export function formatPrinterLabel(
     : undefined;
   const locationName = typeof location === "string"
     ? location
-    : location?.room
-      ? `${location.department ? `${location.department}, ` : ""}каб. ${location.room}`
-      : location?.display_name;
+    : location && organizationMap && branchMap
+      ? formatLocationLabel(location, organizationMap, branchMap, locale, "short")
+      : location?.room
+        ? `${location.department ? `${location.department}, ` : ""}${locale === "ru" ? "каб." : "room"} ${location.room}`
+        : location?.display_name;
+  const inventoryLabel = printer.inventory_number
+    ? `${locale === "ru" ? "Инв." : "Inv."} ${printer.inventory_number}`
+    : undefined;
+  const serialLabel = printer.serial_number
+    ? `${locale === "ru" ? "Сер." : "SN"} ${printer.serial_number}`
+    : undefined;
   const parts = [
     dash(modelName),
-    `Инв. ${dash(printer.inventory_number)}`,
+    inventoryLabel,
+    serialLabel,
     locationName,
     printer.ip_address ? `IP ${printer.ip_address}` : undefined,
   ];

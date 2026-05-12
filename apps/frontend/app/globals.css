@@ -260,6 +260,12 @@ h2 {
   color: var(--accent-strong);
 }
 
+.table-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
 .table-wrap.compact {
   margin-top: 16px;
 }

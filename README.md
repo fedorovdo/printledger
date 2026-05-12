@@ -161,7 +161,7 @@ Open the app at `http://localhost:3000`.
 Pages:
 
 - `http://localhost:3000/` - dashboard with backend, database, cartridge model, printer, and archived printer status cards.
-- `http://localhost:3000/cartridges` - compact cartridge stock list with quick forms for cartridge model creation and stock-in opened in a right-side panel.
+- `http://localhost:3000/cartridges` - compact cartridge stock list with search, sorting, and quick stock-in/replacement actions opened in a right-side panel.
 - `http://localhost:3000/printers` - printer list with Active/In repair/Archive/All filters and quick-add forms for printer models and printers opened in a right-side panel.
 - `http://localhost:3000/locations` - location directory management with the location list first, organization/branch/location forms opened in a right-side panel, and room-aware labels.
 - `http://localhost:3000/operations` - cartridge inventory transaction list.
@@ -198,7 +198,7 @@ Invoke-WebRequest -UseBasicParsing http://localhost:3000/about
 
 ### Frontend Workflows
 
-The `/cartridges` page is now a compact list plus quick stock-in. Actions for a specific cartridge model, including install, correction, and refill return, live on `/cartridges/{cartridge_model_id}`.
+The `/cartridges` page is now a compact stock list with search, sortable columns, quick stock-in, and quick replacement/install actions. Advanced actions for a specific cartridge model, including correction and refill return, live on `/cartridges/{cartridge_model_id}`.
 
 Add a cartridge model:
 
@@ -210,16 +210,16 @@ Add a cartridge model:
 Receive cartridges into stock:
 
 1. Open `http://localhost:3000/cartridges`.
-2. Click the `+` stock-in button to expand the form.
-3. Select cartridge model, quantity, and condition `new` or `refilled`.
-4. Submit the form. The form collapses and the stock columns update.
+2. Click `Приход` in the needed cartridge row, or use the `+` stock-in button.
+3. The cartridge model is preselected for row actions; enter quantity and condition `new` or `refilled`.
+4. Submit the form. The side panel closes and the stock columns update.
 
 Install a cartridge:
 
 1. Open `http://localhost:3000/cartridges`.
-2. Open the cartridge card from the model link or the `Open` button.
-3. Use the install form on the cartridge card, or open a printer card and install from there.
-4. Submit the form. If the slot is already occupied, the UI shows a clear conflict message.
+2. Click `Замена` in the needed cartridge row.
+3. Select an active printer, condition, slot/color, and submit the form.
+4. The side panel closes and the stock columns update. If there is no warehouse stock, the replacement button is disabled; if the slot is already occupied, the UI shows a clear conflict message.
 
 Remove a cartridge:
 
