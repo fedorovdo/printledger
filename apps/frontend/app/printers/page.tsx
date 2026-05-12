@@ -6,7 +6,7 @@ import Link from "next/link";
 import { SidePanel } from "@/components/SidePanel";
 import { EmptyRow, Message, PageHeader } from "@/components/Ui";
 import { compactBody, deleteJson, fetchJson, patchJson, postJson } from "@/lib/api";
-import { useI18n } from "@/lib/i18n";
+import { useI18n, type Locale } from "@/lib/i18n";
 import {
   dash,
   formatColorMode,
@@ -50,6 +50,10 @@ const initialQuickLocation = {
 
 type PrinterFilter = "active" | "repair" | "archived" | "all";
 type ModelFilter = "active" | "inactive" | "all";
+type PrinterSortKey = "model" | "inventory" | "serial" | "ip" | "location" | "room" | "status" | "archived";
+type SortDirection = "asc" | "desc";
+
+const initialMoveLocation = { to_location_id: "", reason: "", notes: "" };
 
 export default function PrintersPage() {
   const { locale, t } = useI18n();
@@ -61,12 +65,18 @@ export default function PrintersPage() {
   const [modelForm, setModelForm] = useState(initialPrinterModel);
   const [printerForm, setPrinterForm] = useState(initialPrinter);
   const [quickLocationForm, setQuickLocationForm] = useState(initialQuickLocation);
+  const [moveLocationForm, setMoveLocationForm] = useState(initialMoveLocation);
+  const [locationPanelPrinter, setLocationPanelPrinter] = useState<Printer | null>(null);
   const [editingPrinterModelId, setEditingPrinterModelId] = useState<number | null>(null);
   const [printerFilter, setPrinterFilter] = useState<PrinterFilter>("active");
   const [modelFilter, setModelFilter] = useState<ModelFilter>("active");
+  const [printerSearch, setPrinterSearch] = useState("");
+  const [printerSortKey, setPrinterSortKey] = useState<PrinterSortKey | null>(null);
+  const [printerSortDirection, setPrinterSortDirection] = useState<SortDirection>("asc");
   const [showModelForm, setShowModelForm] = useState(false);
   const [showPrinterForm, setShowPrinterForm] = useState(false);
   const [showQuickLocationForm, setShowQuickLocationForm] = useState(false);
+  const [showMoveQuickLocationForm, setShowMoveQuickLocationForm] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -75,6 +85,10 @@ export default function PrintersPage() {
 
   const printerModelName = useMemo(
     () => new Map(printerModels.map((model) => [model.id, model.name])),
+    [printerModels],
+  );
+  const printerModelById = useMemo(
+    () => new Map(printerModels.map((model) => [model.id, model])),
     [printerModels],
   );
   const locationById = useMemo(
@@ -135,6 +149,54 @@ export default function PrintersPage() {
     }
     return printers;
   }, [printerFilter, printers]);
+  const visiblePrinters = useMemo(() => {
+    const query = printerSearch.trim().toLowerCase();
+    const searchedPrinters = query
+      ? filteredPrinters.filter((printer) => {
+        const model = printerModelById.get(printer.printer_model_id);
+        const location = printer.current_location_id ? locationById.get(printer.current_location_id) : undefined;
+        const searchText = [
+          model?.name,
+          model?.vendor,
+          printer.inventory_number,
+          printer.serial_number,
+          printer.ip_address,
+          printer.mac_address,
+          location ? formatLocationLabel(location, organizationById, branchById, locale) : undefined,
+          location ? formatLocationPlaceLabel(location, organizationById, branchById) : undefined,
+          location?.room,
+          location?.department,
+          labelPrinterStatus(printer.status, locale),
+          isArchivedPrinter(printer) ? t.yes : t.no,
+        ].filter(Boolean).join(" ").toLowerCase();
+
+        return searchText.includes(query);
+      })
+      : filteredPrinters;
+
+    if (!printerSortKey) {
+      return searchedPrinters;
+    }
+
+    const sortedPrinters = [...searchedPrinters].sort((left, right) => {
+      const leftValue = getPrinterSortValue(left, printerSortKey, printerModelById, locationById, organizationById, branchById, locale, t);
+      const rightValue = getPrinterSortValue(right, printerSortKey, printerModelById, locationById, organizationById, branchById, locale, t);
+      return leftValue.localeCompare(rightValue, locale, { numeric: true, sensitivity: "base" });
+    });
+
+    return printerSortDirection === "asc" ? sortedPrinters : sortedPrinters.reverse();
+  }, [
+    branchById,
+    filteredPrinters,
+    locale,
+    locationById,
+    organizationById,
+    printerModelById,
+    printerSearch,
+    printerSortDirection,
+    printerSortKey,
+    t,
+  ]);
   const activePrinterModels = useMemo(
     () => printerModels.filter((model) => model.is_active),
     [printerModels],
@@ -163,6 +225,12 @@ export default function PrintersPage() {
   const modelCreatedMessage = locale === "ru"
     ? "Модель принтера создана. Теперь добавьте конкретный принтер через кнопку \"+ Принтер\"."
     : "Printer model created. Now add a physical printer using the \"+ Printer\" button.";
+  const locationPanelCurrentLocation = locationPanelPrinter?.current_location_id
+    ? locationById.get(locationPanelPrinter.current_location_id)
+    : undefined;
+  const locationPanelModel = locationPanelPrinter
+    ? printerModelById.get(locationPanelPrinter.printer_model_id)
+    : undefined;
 
   async function loadData() {
     setLoading(true);
@@ -238,6 +306,34 @@ export default function PrintersPage() {
     setModelForm(initialPrinterModel);
   }
 
+  function togglePrinterSort(key: PrinterSortKey) {
+    if (printerSortKey === key) {
+      setPrinterSortDirection((direction) => direction === "asc" ? "desc" : "asc");
+      return;
+    }
+    setPrinterSortKey(key);
+    setPrinterSortDirection("asc");
+  }
+
+  function openLocationPanel(printer: Printer) {
+    setLocationPanelPrinter(printer);
+    setMoveLocationForm(initialMoveLocation);
+    setShowMoveQuickLocationForm(false);
+    setQuickLocationForm(initialQuickLocation);
+    setShowModelForm(false);
+    setShowPrinterForm(false);
+    setError(null);
+    setSuccess(null);
+    setInfo(null);
+  }
+
+  function closeLocationPanel() {
+    setLocationPanelPrinter(null);
+    setMoveLocationForm(initialMoveLocation);
+    setShowMoveQuickLocationForm(false);
+    setQuickLocationForm(initialQuickLocation);
+  }
+
   async function deletePrinterModel(model: PrinterModel) {
     if (!window.confirm(`${t.delete}: ${model.name}?`)) {
       return;
@@ -280,7 +376,7 @@ export default function PrintersPage() {
     }
   }
 
-  async function createQuickLocation() {
+  async function createQuickLocation(target: "printer" | "move" = "printer") {
     if (!quickLocationForm.organization_id) {
       setError(t.organizationRequired);
       return;
@@ -304,9 +400,14 @@ export default function PrintersPage() {
         notes: quickLocationForm.notes || null,
       }));
       await loadData();
-      setPrinterForm((current) => ({ ...current, current_location_id: String(createdLocation.id) }));
+      if (target === "move") {
+        setMoveLocationForm((current) => ({ ...current, to_location_id: String(createdLocation.id) }));
+        setShowMoveQuickLocationForm(false);
+      } else {
+        setPrinterForm((current) => ({ ...current, current_location_id: String(createdLocation.id) }));
+        setShowQuickLocationForm(false);
+      }
       setQuickLocationForm(initialQuickLocation);
-      setShowQuickLocationForm(false);
       setSuccess(t.roomAddedAndSelected);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
@@ -339,26 +440,37 @@ export default function PrintersPage() {
         <button className={printerFilter === "all" ? "active" : ""} onClick={() => setPrinterFilter("all")} type="button">{t.allPrinters} ({printerCounts.all})</button>
       </div>
 
+      <div className="table-toolbar">
+        <input
+          aria-label={t.printerSearchPlaceholder}
+          onChange={(event) => setPrinterSearch(event.target.value)}
+          placeholder={t.printerSearchPlaceholder}
+          type="search"
+          value={printerSearch}
+        />
+      </div>
+
       <div className="table-wrap">
         <table>
           <thead>
             <tr>
-              <th>{t.printerModel}</th>
-              <th>{t.inventoryNumber}</th>
-              <th>{t.serialNumber}</th>
-              <th>{t.ipAddress}</th>
-              <th>{t.location}</th>
-              <th>{t.room}</th>
-              <th>{t.status}</th>
-              <th>{t.archived}</th>
+              <SortableHeader direction={printerSortDirection} label={t.printerModel} onSort={() => togglePrinterSort("model")} sortKey="model" activeSortKey={printerSortKey} />
+              <SortableHeader direction={printerSortDirection} label={t.inventoryNumber} onSort={() => togglePrinterSort("inventory")} sortKey="inventory" activeSortKey={printerSortKey} />
+              <SortableHeader direction={printerSortDirection} label={t.serialNumber} onSort={() => togglePrinterSort("serial")} sortKey="serial" activeSortKey={printerSortKey} />
+              <SortableHeader direction={printerSortDirection} label={t.ipAddress} onSort={() => togglePrinterSort("ip")} sortKey="ip" activeSortKey={printerSortKey} />
+              <SortableHeader direction={printerSortDirection} label={t.location} onSort={() => togglePrinterSort("location")} sortKey="location" activeSortKey={printerSortKey} />
+              <SortableHeader direction={printerSortDirection} label={t.room} onSort={() => togglePrinterSort("room")} sortKey="room" activeSortKey={printerSortKey} />
+              <SortableHeader direction={printerSortDirection} label={t.status} onSort={() => togglePrinterSort("status")} sortKey="status" activeSortKey={printerSortKey} />
+              <SortableHeader direction={printerSortDirection} label={t.archived} onSort={() => togglePrinterSort("archived")} sortKey="archived" activeSortKey={printerSortKey} />
+              <th>{t.locationAction}</th>
               <th>{t.open}</th>
             </tr>
           </thead>
           <tbody>
-            {filteredPrinters.length === 0 ? (
-              <EmptyRow colSpan={9} />
+            {visiblePrinters.length === 0 ? (
+              <tr><td className="empty" colSpan={10}>{printerSearch.trim() ? t.nothingFound : t.noData}</td></tr>
             ) : (
-              filteredPrinters.map((printer) => (
+              visiblePrinters.map((printer) => (
                 <tr className={isArchivedPrinter(printer) ? "row-muted" : ""} key={printer.id}>
                   <td><Link className="text-link" href={`/printers/${printer.id}`}>{printerModelName.get(printer.printer_model_id) ?? `${t.printer} #${printer.id}`}</Link></td>
                   <td>{dash(printer.inventory_number)}</td>
@@ -368,6 +480,7 @@ export default function PrintersPage() {
                   <td>{printer.current_location_id ? formatLocationRoom(locationById.get(printer.current_location_id), locale) : dash(null)}</td>
                   <td>{labelPrinterStatus(printer.status, locale)}</td>
                   <td>{isArchivedPrinter(printer) ? t.yes : t.no}</td>
+                  <td><button className="button tiny secondary" disabled={isArchivedPrinter(printer)} onClick={() => openLocationPanel(printer)} title={isArchivedPrinter(printer) ? t.archivedPrinterMoveDisabled : undefined} type="button">{t.locationAction}</button></td>
                   <td><Link className="button tiny secondary" href={`/printers/${printer.id}`}>{t.open}</Link></td>
                 </tr>
               ))
@@ -538,6 +651,118 @@ export default function PrintersPage() {
           </div>
         </form>
       </SidePanel>
+
+      <SidePanel
+        onClose={closeLocationPanel}
+        open={locationPanelPrinter !== null}
+        title={t.changeLocation}
+      >
+        {locationPanelPrinter && (
+          <form className="panel" onSubmit={(event) => submitForm(event, async () => {
+            await postJson(`/api/printers/${locationPanelPrinter.id}/move`, compactBody({
+              to_location_id: Number(moveLocationForm.to_location_id),
+              reason: moveLocationForm.reason || t.quickLocationChangeReason,
+              notes: moveLocationForm.notes || null,
+            }));
+            closeLocationPanel();
+            await loadData();
+          }, t.printerLocationUpdated)}>
+            <dl className="details">
+              <dt>{t.printerModel}</dt><dd>{dash(locationPanelModel?.name)}</dd>
+              <dt>{t.serialNumber}</dt><dd>{dash(locationPanelPrinter.serial_number)}</dd>
+              <dt>{t.inventoryNumber}</dt><dd>{dash(locationPanelPrinter.inventory_number)}</dd>
+              <dt>{t.currentLocation}</dt><dd>{formatLocationPlaceLabel(locationPanelCurrentLocation, organizationById, branchById)}</dd>
+              <dt>{t.currentRoom}</dt><dd>{formatLocationRoom(locationPanelCurrentLocation, locale)}</dd>
+            </dl>
+            <label>{t.toLocation}<select required value={moveLocationForm.to_location_id} onChange={(e) => setMoveLocationForm({ ...moveLocationForm, to_location_id: e.target.value })}><option value=""></option>{activeLocations.map((location) => <option key={location.id} value={location.id}>{formatLocationLabel(location, organizationById, branchById, locale)}</option>)}</select></label>
+            <button className="button secondary" onClick={() => setShowMoveQuickLocationForm((value) => !value)} type="button">
+              {showMoveQuickLocationForm ? `- ${t.room}` : `+ ${t.room}`}
+            </button>
+            {showMoveQuickLocationForm && (
+              <div className="subpanel">
+                <h3>{t.addRoom}</h3>
+                <label>{t.organizations}<select required value={quickLocationForm.organization_id} onChange={(e) => setQuickLocationForm({ ...quickLocationForm, organization_id: e.target.value, branch_id: "" })}><option value=""></option>{activeOrganizations.map((org) => <option key={org.id} value={org.id}>{org.name}</option>)}</select></label>
+                <label>{t.branch}<select value={quickLocationForm.branch_id} onChange={(e) => setQuickLocationForm({ ...quickLocationForm, branch_id: e.target.value })}><option value=""></option>{quickLocationBranches.map((branch) => <option key={branch.id} value={branch.id}>{branch.name}</option>)}</select></label>
+                <p className="muted">{t.branchOptionalHint}</p>
+                <label>{t.department}<input placeholder={t.departmentOptional} value={quickLocationForm.department} onChange={(e) => setQuickLocationForm({ ...quickLocationForm, department: e.target.value })} /></label>
+                <label>{t.room}<input required value={quickLocationForm.room} onChange={(e) => setQuickLocationForm({ ...quickLocationForm, room: e.target.value })} /></label>
+                <label>{t.notes}<textarea value={quickLocationForm.notes} onChange={(e) => setQuickLocationForm({ ...quickLocationForm, notes: e.target.value })} /></label>
+                <div className="inline-actions">
+                  <button className="button" disabled={saving} onClick={() => void createQuickLocation("move")} type="button">{t.createRoom}</button>
+                  <button className="button secondary" disabled={saving} onClick={() => { setShowMoveQuickLocationForm(false); setQuickLocationForm(initialQuickLocation); }} type="button">{t.cancel}</button>
+                </div>
+              </div>
+            )}
+            <label>{t.reason}<input value={moveLocationForm.reason} onChange={(e) => setMoveLocationForm({ ...moveLocationForm, reason: e.target.value })} /></label>
+            <label>{t.notes}<textarea value={moveLocationForm.notes} onChange={(e) => setMoveLocationForm({ ...moveLocationForm, notes: e.target.value })} /></label>
+            <div className="inline-actions">
+              <button className="button" disabled={saving} type="submit">{t.save}</button>
+              <button className="button secondary" onClick={closeLocationPanel} type="button">{t.cancel}</button>
+            </div>
+          </form>
+        )}
+      </SidePanel>
     </section>
+  );
+}
+
+function getPrinterSortValue(
+  printer: Printer,
+  key: PrinterSortKey,
+  printerModelById: ReadonlyMap<number, PrinterModel>,
+  locationById: ReadonlyMap<number, Location>,
+  organizationById: ReadonlyMap<number, Organization>,
+  branchById: ReadonlyMap<number, Branch>,
+  locale: Locale,
+  labels: { yes: string; no: string },
+) {
+  const model = printerModelById.get(printer.printer_model_id);
+  const location = printer.current_location_id ? locationById.get(printer.current_location_id) : undefined;
+
+  if (key === "model") {
+    return [model?.name, model?.vendor].filter(Boolean).join(" ");
+  }
+  if (key === "inventory") {
+    return printer.inventory_number ?? "";
+  }
+  if (key === "serial") {
+    return printer.serial_number ?? "";
+  }
+  if (key === "ip") {
+    return printer.ip_address ?? "";
+  }
+  if (key === "location") {
+    return location ? formatLocationPlaceLabel(location, organizationById, branchById) : "";
+  }
+  if (key === "room") {
+    return location?.room ?? "";
+  }
+  if (key === "status") {
+    return labelPrinterStatus(printer.status, locale);
+  }
+  return isArchivedPrinter(printer) ? labels.yes : labels.no;
+}
+
+function SortableHeader({
+  activeSortKey,
+  direction,
+  label,
+  onSort,
+  sortKey,
+}: {
+  activeSortKey: PrinterSortKey | null;
+  direction: SortDirection;
+  label: string;
+  onSort: () => void;
+  sortKey: PrinterSortKey;
+}) {
+  const active = activeSortKey === sortKey;
+  return (
+    <th>
+      <button className="table-sort-button" onClick={onSort} type="button">
+        <span>{label}</span>
+        {active ? <span aria-hidden="true">{direction === "asc" ? "↑" : "↓"}</span> : null}
+      </button>
+    </th>
   );
 }

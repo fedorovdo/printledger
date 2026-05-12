@@ -233,6 +233,33 @@ h2 {
   color: var(--accent-strong);
 }
 
+.table-toolbar {
+  display: flex;
+  margin-bottom: 14px;
+}
+
+.table-toolbar input {
+  max-width: 620px;
+}
+
+.table-sort-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  padding: 0;
+  font: inherit;
+  font-weight: 700;
+  text-align: left;
+}
+
+.table-sort-button:hover {
+  color: var(--accent-strong);
+}
+
 .table-wrap.compact {
   margin-top: 16px;
 }

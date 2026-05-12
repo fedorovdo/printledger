@@ -259,6 +259,9 @@ Archive or write off a printer:
 Printer archive behavior:
 
 - `/printers` is now a clean list plus quick-add forms. Operations for a specific printer live on `/printers/{printer_id}`.
+- The printer list supports quick client-side search by model, IP, serial number, inventory number, location, room, and status.
+- Printer table columns can be sorted by clicking their headers.
+- Active printers can be moved directly from the list with the `Локация` action. This uses the same move API as the printer card, so movement history is preserved.
 - Printers are not physically deleted from the database.
 - The main `/printers` table opens with the `Активные` filter and hides archived or written-off printers by default.
 - Use `Архив/Списанные` to view archived and written-off printers.
