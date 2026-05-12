@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 
+import { ColumnVisibility } from "@/components/ColumnVisibility";
 import { IconButton } from "@/components/IconButton";
 import { SidePanel } from "@/components/SidePanel";
 import { EmptyRow, Message, PageHeader } from "@/components/Ui";
@@ -16,6 +17,7 @@ import {
   formatPrinterLabel,
   isActivePrinter,
 } from "@/lib/labels";
+import { loadVisibleColumns, saveVisibleColumns, type VisibleColumns } from "@/lib/tablePrefs";
 import type { Branch, CartridgeModel, CartridgeStock, Location, Organization, Printer, PrinterModel } from "@/lib/types";
 
 const initialModel = {
@@ -48,6 +50,19 @@ type ModelFilter = "active" | "inactive" | "all";
 type StockSortKey = "model" | "sku" | "stock_new" | "stock_refilled" | "installed" | "total" | "min_stock" | "status";
 type SortDirection = "asc" | "desc";
 
+const CARTRIDGE_COLUMNS_STORAGE_KEY = "printledger.cartridges.visibleColumns.v1";
+const cartridgeColumnDefaults: VisibleColumns = {
+  model: true,
+  sku: true,
+  stock_new: true,
+  stock_refilled: true,
+  installed: true,
+  total: true,
+  min_stock: true,
+  status: true,
+  actions: true,
+};
+
 export default function CartridgesPage() {
   const { locale, t } = useI18n();
   const [stock, setStock] = useState<CartridgeStock[]>([]);
@@ -65,6 +80,7 @@ export default function CartridgesPage() {
   const [stockSearch, setStockSearch] = useState("");
   const [stockSortKey, setStockSortKey] = useState<StockSortKey | null>(null);
   const [stockSortDirection, setStockSortDirection] = useState<SortDirection>("asc");
+  const [cartridgeColumns, setCartridgeColumns] = useState<VisibleColumns>(cartridgeColumnDefaults);
   const [showModelForm, setShowModelForm] = useState(false);
   const [showStockInForm, setShowStockInForm] = useState(false);
   const [showInstallForm, setShowInstallForm] = useState(false);
@@ -92,6 +108,21 @@ export default function CartridgesPage() {
   const branchById = useMemo(
     () => new Map(branches.map((branch) => [branch.id, branch])),
     [branches],
+  );
+  const cartridgeColumnOptions = useMemo(() => [
+    { key: "model", label: t.model, required: true },
+    { key: "sku", label: t.sku },
+    { key: "stock_new", label: t.stockNew },
+    { key: "stock_refilled", label: t.stockRefilled },
+    { key: "installed", label: t.installed },
+    { key: "total", label: t.total },
+    { key: "min_stock", label: t.minStock },
+    { key: "status", label: t.stockStatus },
+    { key: "actions", label: t.actions, required: true },
+  ], [t]);
+  const visibleCartridgeColumnCount = useMemo(
+    () => cartridgeColumnOptions.filter((column) => cartridgeColumns[column.key] ?? true).length,
+    [cartridgeColumnOptions, cartridgeColumns],
   );
   const vendorSuggestions = useMemo(
     () => Array.from(
@@ -189,6 +220,10 @@ export default function CartridgesPage() {
 
   useEffect(() => {
     void loadData();
+  }, []);
+
+  useEffect(() => {
+    setCartridgeColumns(loadVisibleColumns(CARTRIDGE_COLUMNS_STORAGE_KEY, cartridgeColumnDefaults));
   }, []);
 
   async function createModel(event: FormEvent) {
@@ -320,6 +355,18 @@ export default function CartridgesPage() {
     setStockSortDirection("asc");
   }
 
+  function updateCartridgeColumns(next: VisibleColumns) {
+    setCartridgeColumns(next);
+    saveVisibleColumns(CARTRIDGE_COLUMNS_STORAGE_KEY, next);
+    if (stockSortKey && !next[stockSortKey]) {
+      setStockSortKey(null);
+    }
+  }
+
+  function isCartridgeColumnVisible(key: string) {
+    return cartridgeColumns[key] ?? true;
+  }
+
   async function stockIn(event: FormEvent) {
     event.preventDefault();
     setSaving(true);
@@ -388,27 +435,28 @@ export default function CartridgesPage() {
           value={stockSearch}
           onChange={(event) => setStockSearch(event.target.value)}
         />
+        <ColumnVisibility columns={cartridgeColumnOptions} onChange={updateCartridgeColumns} title={t.columnSettings} visibleColumns={cartridgeColumns} />
       </div>
       <div className="table-wrap">
         <table>
           <thead>
             <tr>
-              <SortableHeader activeSortKey={stockSortKey} direction={stockSortDirection} label={t.model} onSort={() => toggleStockSort("model")} sortKey="model" />
-              <SortableHeader activeSortKey={stockSortKey} direction={stockSortDirection} label={t.sku} onSort={() => toggleStockSort("sku")} sortKey="sku" />
-              <SortableHeader activeSortKey={stockSortKey} direction={stockSortDirection} label={t.stockNew} onSort={() => toggleStockSort("stock_new")} sortKey="stock_new" />
-              <SortableHeader activeSortKey={stockSortKey} direction={stockSortDirection} label={t.stockRefilled} onSort={() => toggleStockSort("stock_refilled")} sortKey="stock_refilled" />
-              <SortableHeader activeSortKey={stockSortKey} direction={stockSortDirection} label={t.installed} onSort={() => toggleStockSort("installed")} sortKey="installed" />
-              <SortableHeader activeSortKey={stockSortKey} direction={stockSortDirection} label={t.total} onSort={() => toggleStockSort("total")} sortKey="total" />
-              <SortableHeader activeSortKey={stockSortKey} direction={stockSortDirection} label={t.minStock} onSort={() => toggleStockSort("min_stock")} sortKey="min_stock" />
-              <SortableHeader activeSortKey={stockSortKey} direction={stockSortDirection} label={t.stockStatus} onSort={() => toggleStockSort("status")} sortKey="status" />
-              <th>{t.actions}</th>
+              {isCartridgeColumnVisible("model") && <SortableHeader activeSortKey={stockSortKey} direction={stockSortDirection} label={t.model} onSort={() => toggleStockSort("model")} sortKey="model" />}
+              {isCartridgeColumnVisible("sku") && <SortableHeader activeSortKey={stockSortKey} direction={stockSortDirection} label={t.sku} onSort={() => toggleStockSort("sku")} sortKey="sku" />}
+              {isCartridgeColumnVisible("stock_new") && <SortableHeader activeSortKey={stockSortKey} direction={stockSortDirection} label={t.stockNew} onSort={() => toggleStockSort("stock_new")} sortKey="stock_new" />}
+              {isCartridgeColumnVisible("stock_refilled") && <SortableHeader activeSortKey={stockSortKey} direction={stockSortDirection} label={t.stockRefilled} onSort={() => toggleStockSort("stock_refilled")} sortKey="stock_refilled" />}
+              {isCartridgeColumnVisible("installed") && <SortableHeader activeSortKey={stockSortKey} direction={stockSortDirection} label={t.installed} onSort={() => toggleStockSort("installed")} sortKey="installed" />}
+              {isCartridgeColumnVisible("total") && <SortableHeader activeSortKey={stockSortKey} direction={stockSortDirection} label={t.total} onSort={() => toggleStockSort("total")} sortKey="total" />}
+              {isCartridgeColumnVisible("min_stock") && <SortableHeader activeSortKey={stockSortKey} direction={stockSortDirection} label={t.minStock} onSort={() => toggleStockSort("min_stock")} sortKey="min_stock" />}
+              {isCartridgeColumnVisible("status") && <SortableHeader activeSortKey={stockSortKey} direction={stockSortDirection} label={t.stockStatus} onSort={() => toggleStockSort("status")} sortKey="status" />}
+              {isCartridgeColumnVisible("actions") && <th>{t.actions}</th>}
             </tr>
           </thead>
           <tbody>
             {stock.length === 0 ? (
-              <EmptyRow colSpan={9} />
+              <EmptyRow colSpan={visibleCartridgeColumnCount} />
             ) : visibleStock.length === 0 ? (
-              <tr><td colSpan={9}>{t.nothingFound}</td></tr>
+              <tr><td colSpan={visibleCartridgeColumnCount}>{t.nothingFound}</td></tr>
             ) : (
               visibleStock.map((item) => {
                 const warehouseTotal = item.stock_new + item.stock_refilled;
@@ -419,21 +467,21 @@ export default function CartridgesPage() {
                 const disabledTitle = modelInactive ? t.inactiveModel : warehouseTotal <= 0 ? t.noStockForInstall : undefined;
                 return (
                   <tr className={`${isLow ? "row-warning" : ""} ${modelInactive ? "row-muted" : ""}`} key={item.cartridge_model_id}>
-                    <td><Link className="text-link" href={`/cartridges/${item.cartridge_model_id}`}>{item.model_name}</Link></td>
-                    <td>{dash(item.purchase_sku)}</td>
-                    <td>{item.stock_new}</td>
-                    <td>{item.stock_refilled}</td>
-                    <td>{item.installed_total}</td>
-                    <td>{item.total}</td>
-                    <td>{item.min_stock_level}</td>
-                    <td><span className={isLow ? "badge warning" : "badge ok"}>{isLow ? t.lowStock : t.ok}</span></td>
-                    <td>
+                    {isCartridgeColumnVisible("model") && <td><Link className="text-link" href={`/cartridges/${item.cartridge_model_id}`}>{item.model_name}</Link></td>}
+                    {isCartridgeColumnVisible("sku") && <td>{dash(item.purchase_sku)}</td>}
+                    {isCartridgeColumnVisible("stock_new") && <td>{item.stock_new}</td>}
+                    {isCartridgeColumnVisible("stock_refilled") && <td>{item.stock_refilled}</td>}
+                    {isCartridgeColumnVisible("installed") && <td>{item.installed_total}</td>}
+                    {isCartridgeColumnVisible("total") && <td>{item.total}</td>}
+                    {isCartridgeColumnVisible("min_stock") && <td>{item.min_stock_level}</td>}
+                    {isCartridgeColumnVisible("status") && <td><span className={isLow ? "badge warning" : "badge ok"}>{isLow ? t.lowStock : t.ok}</span></td>}
+                    {isCartridgeColumnVisible("actions") && <td>
                       <div className="icon-actions">
                         <IconButton href={`/cartridges/${item.cartridge_model_id}`} icon="↗" label={t.open} />
                         <IconButton disabled={modelInactive} icon="📦" label={t.stockIn} onClick={() => openStockInPanel(item)} title={modelInactive ? t.inactiveModel : t.stockIn} />
                         <IconButton disabled={replacementDisabled} icon="⇄" label={t.replacement} onClick={() => openInstallPanel(item)} title={disabledTitle ?? t.replacement} />
                       </div>
-                    </td>
+                    </td>}
                   </tr>
                 );
               })

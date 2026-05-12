@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 
+import { ColumnVisibility } from "@/components/ColumnVisibility";
 import { IconButton } from "@/components/IconButton";
 import { SidePanel } from "@/components/SidePanel";
 import { EmptyRow, Message, PageHeader } from "@/components/Ui";
@@ -20,6 +21,7 @@ import {
   isRepairPrinter,
   labelPrinterStatus,
 } from "@/lib/labels";
+import { loadVisibleColumns, saveVisibleColumns, type VisibleColumns } from "@/lib/tablePrefs";
 import type { Branch, Location, Organization, Printer, PrinterModel } from "@/lib/types";
 
 const initialPrinterModel = {
@@ -54,6 +56,20 @@ type ModelFilter = "active" | "inactive" | "all";
 type PrinterSortKey = "model" | "inventory" | "serial" | "ip" | "location" | "room" | "status" | "archived";
 type SortDirection = "asc" | "desc";
 
+const PRINTER_COLUMNS_STORAGE_KEY = "printledger.printers.visibleColumns.v1";
+const printerColumnDefaults: VisibleColumns = {
+  model: true,
+  inventory_number: true,
+  serial_number: true,
+  ip_address: true,
+  location: true,
+  room: true,
+  status: true,
+  archive: true,
+  location_action: true,
+  open_action: true,
+};
+
 const initialMoveLocation = { to_location_id: "", reason: "", notes: "" };
 
 export default function PrintersPage() {
@@ -74,6 +90,7 @@ export default function PrintersPage() {
   const [printerSearch, setPrinterSearch] = useState("");
   const [printerSortKey, setPrinterSortKey] = useState<PrinterSortKey | null>(null);
   const [printerSortDirection, setPrinterSortDirection] = useState<SortDirection>("asc");
+  const [printerColumns, setPrinterColumns] = useState<VisibleColumns>(printerColumnDefaults);
   const [showModelForm, setShowModelForm] = useState(false);
   const [showPrinterForm, setShowPrinterForm] = useState(false);
   const [showQuickLocationForm, setShowQuickLocationForm] = useState(false);
@@ -103,6 +120,22 @@ export default function PrintersPage() {
   const branchById = useMemo(
     () => new Map(branches.map((branch) => [branch.id, branch])),
     [branches],
+  );
+  const printerColumnOptions = useMemo(() => [
+    { key: "model", label: t.printerModel, required: true },
+    { key: "inventory_number", label: t.inventoryNumber },
+    { key: "serial_number", label: t.serialNumber },
+    { key: "ip_address", label: t.ipAddress },
+    { key: "location", label: t.location },
+    { key: "room", label: t.room },
+    { key: "status", label: t.status },
+    { key: "archive", label: t.archived },
+    { key: "location_action", label: t.locationAction },
+    { key: "open_action", label: t.open, required: true },
+  ], [t]);
+  const visiblePrinterColumnCount = useMemo(
+    () => printerColumnOptions.filter((column) => printerColumns[column.key] ?? true).length,
+    [printerColumnOptions, printerColumns],
   );
   const activeOrganizationIds = useMemo(
     () => new Set(organizations.filter((org) => org.is_active).map((org) => org.id)),
@@ -262,6 +295,10 @@ export default function PrintersPage() {
     void loadData();
   }, []);
 
+  useEffect(() => {
+    setPrinterColumns(loadVisibleColumns(PRINTER_COLUMNS_STORAGE_KEY, printerColumnDefaults));
+  }, []);
+
   async function submitForm(
     event: FormEvent,
     action: () => Promise<{ type: "info"; message: string } | void>,
@@ -314,6 +351,18 @@ export default function PrintersPage() {
     }
     setPrinterSortKey(key);
     setPrinterSortDirection("asc");
+  }
+
+  function updatePrinterColumns(next: VisibleColumns) {
+    setPrinterColumns(next);
+    saveVisibleColumns(PRINTER_COLUMNS_STORAGE_KEY, next);
+    if (printerSortKey && !next[printerSortColumnKey(printerSortKey)]) {
+      setPrinterSortKey(null);
+    }
+  }
+
+  function isPrinterColumnVisible(key: string) {
+    return printerColumns[key] ?? true;
   }
 
   function openLocationPanel(printer: Printer) {
@@ -449,40 +498,41 @@ export default function PrintersPage() {
           type="search"
           value={printerSearch}
         />
+        <ColumnVisibility columns={printerColumnOptions} onChange={updatePrinterColumns} title={t.columnSettings} visibleColumns={printerColumns} />
       </div>
 
       <div className="table-wrap">
         <table>
           <thead>
             <tr>
-              <SortableHeader direction={printerSortDirection} label={t.printerModel} onSort={() => togglePrinterSort("model")} sortKey="model" activeSortKey={printerSortKey} />
-              <SortableHeader direction={printerSortDirection} label={t.inventoryNumber} onSort={() => togglePrinterSort("inventory")} sortKey="inventory" activeSortKey={printerSortKey} />
-              <SortableHeader direction={printerSortDirection} label={t.serialNumber} onSort={() => togglePrinterSort("serial")} sortKey="serial" activeSortKey={printerSortKey} />
-              <SortableHeader direction={printerSortDirection} label={t.ipAddress} onSort={() => togglePrinterSort("ip")} sortKey="ip" activeSortKey={printerSortKey} />
-              <SortableHeader direction={printerSortDirection} label={t.location} onSort={() => togglePrinterSort("location")} sortKey="location" activeSortKey={printerSortKey} />
-              <SortableHeader direction={printerSortDirection} label={t.room} onSort={() => togglePrinterSort("room")} sortKey="room" activeSortKey={printerSortKey} />
-              <SortableHeader direction={printerSortDirection} label={t.status} onSort={() => togglePrinterSort("status")} sortKey="status" activeSortKey={printerSortKey} />
-              <SortableHeader direction={printerSortDirection} label={t.archived} onSort={() => togglePrinterSort("archived")} sortKey="archived" activeSortKey={printerSortKey} />
-              <th>{t.locationAction}</th>
-              <th>{t.open}</th>
+              {isPrinterColumnVisible("model") && <SortableHeader direction={printerSortDirection} label={t.printerModel} onSort={() => togglePrinterSort("model")} sortKey="model" activeSortKey={printerSortKey} />}
+              {isPrinterColumnVisible("inventory_number") && <SortableHeader direction={printerSortDirection} label={t.inventoryNumber} onSort={() => togglePrinterSort("inventory")} sortKey="inventory" activeSortKey={printerSortKey} />}
+              {isPrinterColumnVisible("serial_number") && <SortableHeader direction={printerSortDirection} label={t.serialNumber} onSort={() => togglePrinterSort("serial")} sortKey="serial" activeSortKey={printerSortKey} />}
+              {isPrinterColumnVisible("ip_address") && <SortableHeader direction={printerSortDirection} label={t.ipAddress} onSort={() => togglePrinterSort("ip")} sortKey="ip" activeSortKey={printerSortKey} />}
+              {isPrinterColumnVisible("location") && <SortableHeader direction={printerSortDirection} label={t.location} onSort={() => togglePrinterSort("location")} sortKey="location" activeSortKey={printerSortKey} />}
+              {isPrinterColumnVisible("room") && <SortableHeader direction={printerSortDirection} label={t.room} onSort={() => togglePrinterSort("room")} sortKey="room" activeSortKey={printerSortKey} />}
+              {isPrinterColumnVisible("status") && <SortableHeader direction={printerSortDirection} label={t.status} onSort={() => togglePrinterSort("status")} sortKey="status" activeSortKey={printerSortKey} />}
+              {isPrinterColumnVisible("archive") && <SortableHeader direction={printerSortDirection} label={t.archived} onSort={() => togglePrinterSort("archived")} sortKey="archived" activeSortKey={printerSortKey} />}
+              {isPrinterColumnVisible("location_action") && <th>{t.locationAction}</th>}
+              {isPrinterColumnVisible("open_action") && <th>{t.open}</th>}
             </tr>
           </thead>
           <tbody>
             {visiblePrinters.length === 0 ? (
-              <tr><td className="empty" colSpan={10}>{printerSearch.trim() ? t.nothingFound : t.noData}</td></tr>
+              <tr><td className="empty" colSpan={visiblePrinterColumnCount}>{printerSearch.trim() ? t.nothingFound : t.noData}</td></tr>
             ) : (
               visiblePrinters.map((printer) => (
                 <tr className={isArchivedPrinter(printer) ? "row-muted" : ""} key={printer.id}>
-                  <td><Link className="text-link" href={`/printers/${printer.id}`}>{printerModelName.get(printer.printer_model_id) ?? `${t.printer} #${printer.id}`}</Link></td>
-                  <td>{dash(printer.inventory_number)}</td>
-                  <td>{dash(printer.serial_number)}</td>
-                  <td>{dash(printer.ip_address)}</td>
-                  <td>{printer.current_location_id ? formatLocationPlaceLabel(locationById.get(printer.current_location_id), organizationById, branchById) : dash(null)}</td>
-                  <td>{printer.current_location_id ? formatLocationRoom(locationById.get(printer.current_location_id), locale) : dash(null)}</td>
-                  <td>{labelPrinterStatus(printer.status, locale)}</td>
-                  <td>{isArchivedPrinter(printer) ? t.yes : t.no}</td>
-                  <td><IconButton disabled={isArchivedPrinter(printer)} icon="📍" label={t.locationAction} onClick={() => openLocationPanel(printer)} title={isArchivedPrinter(printer) ? t.archivedPrinterMoveDisabled : t.locationAction} /></td>
-                  <td><IconButton href={`/printers/${printer.id}`} icon="↗" label={t.open} /></td>
+                  {isPrinterColumnVisible("model") && <td><Link className="text-link" href={`/printers/${printer.id}`}>{printerModelName.get(printer.printer_model_id) ?? `${t.printer} #${printer.id}`}</Link></td>}
+                  {isPrinterColumnVisible("inventory_number") && <td>{dash(printer.inventory_number)}</td>}
+                  {isPrinterColumnVisible("serial_number") && <td>{dash(printer.serial_number)}</td>}
+                  {isPrinterColumnVisible("ip_address") && <td>{dash(printer.ip_address)}</td>}
+                  {isPrinterColumnVisible("location") && <td>{printer.current_location_id ? formatLocationPlaceLabel(locationById.get(printer.current_location_id), organizationById, branchById) : dash(null)}</td>}
+                  {isPrinterColumnVisible("room") && <td>{printer.current_location_id ? formatLocationRoom(locationById.get(printer.current_location_id), locale) : dash(null)}</td>}
+                  {isPrinterColumnVisible("status") && <td>{labelPrinterStatus(printer.status, locale)}</td>}
+                  {isPrinterColumnVisible("archive") && <td>{isArchivedPrinter(printer) ? t.yes : t.no}</td>}
+                  {isPrinterColumnVisible("location_action") && <td><IconButton disabled={isArchivedPrinter(printer)} icon="📍" label={t.locationAction} onClick={() => openLocationPanel(printer)} title={isArchivedPrinter(printer) ? t.archivedPrinterMoveDisabled : t.locationAction} /></td>}
+                  {isPrinterColumnVisible("open_action") && <td><IconButton href={`/printers/${printer.id}`} icon="↗" label={t.open} /></td>}
                 </tr>
               ))
             )}
@@ -742,6 +792,20 @@ function getPrinterSortValue(
     return labelPrinterStatus(printer.status, locale);
   }
   return isArchivedPrinter(printer) ? labels.yes : labels.no;
+}
+
+function printerSortColumnKey(sortKey: PrinterSortKey) {
+  const mapping: Record<PrinterSortKey, string> = {
+    model: "model",
+    inventory: "inventory_number",
+    serial: "serial_number",
+    ip: "ip_address",
+    location: "location",
+    room: "room",
+    status: "status",
+    archived: "archive",
+  };
+  return mapping[sortKey];
 }
 
 function SortableHeader({

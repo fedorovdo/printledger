@@ -2,12 +2,14 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 
+import { ColumnVisibility } from "@/components/ColumnVisibility";
 import { IconButton } from "@/components/IconButton";
 import { SidePanel } from "@/components/SidePanel";
 import { EmptyRow, Message, PageHeader } from "@/components/Ui";
 import { compactBody, deleteJson, fetchJson, patchJson, postJson } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { dash, formatLocationDescription } from "@/lib/labels";
+import { loadVisibleColumns, saveVisibleColumns, type VisibleColumns } from "@/lib/tablePrefs";
 import type { Branch, Location, Organization } from "@/lib/types";
 
 const initialOrgForm = { name: "", short_name: "", notes: "" };
@@ -22,6 +24,19 @@ const initialLocationForm = {
 };
 
 type DirectoryFilter = "active" | "inactive" | "all";
+
+const LOCATION_COLUMNS_STORAGE_KEY = "printledger.locations.visibleColumns.v1";
+const locationColumnDefaults: VisibleColumns = {
+  organization: true,
+  branch: true,
+  department: true,
+  room: true,
+  description: true,
+  active: true,
+  edit: true,
+  delete: true,
+  status: true,
+};
 
 function applyFilter<T extends { is_active: boolean }>(items: T[], filter: DirectoryFilter) {
   if (filter === "active") {
@@ -58,6 +73,7 @@ export default function LocationsPage() {
   const [orgFilter, setOrgFilter] = useState<DirectoryFilter>("active");
   const [branchFilter, setBranchFilter] = useState<DirectoryFilter>("active");
   const [locationFilter, setLocationFilter] = useState<DirectoryFilter>("active");
+  const [locationColumns, setLocationColumns] = useState<VisibleColumns>(locationColumnDefaults);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -70,6 +86,21 @@ export default function LocationsPage() {
   const branchById = useMemo(
     () => new Map(branches.map((branch) => [branch.id, branch])),
     [branches],
+  );
+  const locationColumnOptions = useMemo(() => [
+    { key: "organization", label: t.organization, required: true },
+    { key: "branch", label: t.branch },
+    { key: "department", label: t.department },
+    { key: "room", label: t.room, required: true },
+    { key: "description", label: t.locationDescription },
+    { key: "active", label: t.active },
+    { key: "edit", label: t.edit, required: true },
+    { key: "delete", label: t.delete },
+    { key: "status", label: t.status },
+  ], [t]);
+  const visibleLocationColumnCount = useMemo(
+    () => locationColumnOptions.filter((column) => locationColumns[column.key] ?? true).length,
+    [locationColumnOptions, locationColumns],
   );
   const activeOrganizations = useMemo(
     () => organizations.filter((org) => org.is_active),
@@ -128,6 +159,19 @@ export default function LocationsPage() {
   useEffect(() => {
     void loadData();
   }, []);
+
+  useEffect(() => {
+    setLocationColumns(loadVisibleColumns(LOCATION_COLUMNS_STORAGE_KEY, locationColumnDefaults));
+  }, []);
+
+  function updateLocationColumns(next: VisibleColumns) {
+    setLocationColumns(next);
+    saveVisibleColumns(LOCATION_COLUMNS_STORAGE_KEY, next);
+  }
+
+  function isLocationColumnVisible(key: string) {
+    return locationColumns[key] ?? true;
+  }
 
   async function submitForm(event: FormEvent, action: () => Promise<void>, message: string) {
     event.preventDefault();
@@ -321,33 +365,36 @@ export default function LocationsPage() {
       <div className="panel wide">
         <h2>{t.locationList}</h2>
         <DirectoryFilterBar counts={locationCounts} filter={locationFilter} onChange={setLocationFilter} />
+        <div className="table-toolbar">
+          <ColumnVisibility columns={locationColumnOptions} onChange={updateLocationColumns} title={t.columnSettings} visibleColumns={locationColumns} />
+        </div>
         <div className="table-wrap compact">
           <table>
             <thead>
               <tr>
-                <th>{t.organizations}</th>
-                <th>{t.branch}</th>
-                <th>{t.department}</th>
-                <th>{t.room}</th>
-                <th>{t.locationDescription}</th>
-                <th>{t.active}</th>
-                <th>{t.edit}</th>
-                <th>{t.delete}</th>
-                <th>{t.status}</th>
+                {isLocationColumnVisible("organization") && <th>{t.organizations}</th>}
+                {isLocationColumnVisible("branch") && <th>{t.branch}</th>}
+                {isLocationColumnVisible("department") && <th>{t.department}</th>}
+                {isLocationColumnVisible("room") && <th>{t.room}</th>}
+                {isLocationColumnVisible("description") && <th>{t.locationDescription}</th>}
+                {isLocationColumnVisible("active") && <th>{t.active}</th>}
+                {isLocationColumnVisible("edit") && <th>{t.edit}</th>}
+                {isLocationColumnVisible("delete") && <th>{t.delete}</th>}
+                {isLocationColumnVisible("status") && <th>{t.status}</th>}
               </tr>
             </thead>
             <tbody>
-              {filteredLocations.length === 0 ? <EmptyRow colSpan={9} /> : filteredLocations.map((item) => (
+              {filteredLocations.length === 0 ? <EmptyRow colSpan={visibleLocationColumnCount} /> : filteredLocations.map((item) => (
                 <tr className={!item.is_active ? "row-muted" : ""} key={item.id}>
-                  <td>{dash(organizationById.get(item.organization_id)?.name)}</td>
-                  <td>{item.branch_id ? dash(branchById.get(item.branch_id)?.name) : dash(null)}</td>
-                  <td>{dash(item.department)}</td>
-                  <td>{dash(item.room)}</td>
-                  <td>{formatLocationDescription(item)}</td>
-                  <td>{item.is_active ? t.yes : t.no}</td>
-                  <td><IconButton icon="✎" label={t.edit} onClick={() => startEditLocation(item)} /></td>
-                  <td><IconButton disabled={saving} icon="🗑" label={t.delete} onClick={() => void deleteRecord(`/api/locations/${item.id}`, t.locationDeleted)} variant="danger" /></td>
-                  <td><IconButton disabled={saving} icon={item.is_active ? "⊘" : "↩"} label={item.is_active ? t.deactivate : t.reactivate} onClick={() => void toggleActive(`/api/locations/${item.id}`, item.is_active)} variant={item.is_active ? "warning" : "success"} /></td>
+                  {isLocationColumnVisible("organization") && <td>{dash(organizationById.get(item.organization_id)?.name)}</td>}
+                  {isLocationColumnVisible("branch") && <td>{item.branch_id ? dash(branchById.get(item.branch_id)?.name) : dash(null)}</td>}
+                  {isLocationColumnVisible("department") && <td>{dash(item.department)}</td>}
+                  {isLocationColumnVisible("room") && <td>{dash(item.room)}</td>}
+                  {isLocationColumnVisible("description") && <td>{formatLocationDescription(item)}</td>}
+                  {isLocationColumnVisible("active") && <td>{item.is_active ? t.yes : t.no}</td>}
+                  {isLocationColumnVisible("edit") && <td><IconButton icon="✎" label={t.edit} onClick={() => startEditLocation(item)} /></td>}
+                  {isLocationColumnVisible("delete") && <td><IconButton disabled={saving} icon="🗑" label={t.delete} onClick={() => void deleteRecord(`/api/locations/${item.id}`, t.locationDeleted)} variant="danger" /></td>}
+                  {isLocationColumnVisible("status") && <td><IconButton disabled={saving} icon={item.is_active ? "⊘" : "↩"} label={item.is_active ? t.deactivate : t.reactivate} onClick={() => void toggleActive(`/api/locations/${item.id}`, item.is_active)} variant={item.is_active ? "warning" : "success"} /></td>}
                 </tr>
               ))}
             </tbody>
