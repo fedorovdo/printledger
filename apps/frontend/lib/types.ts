@@ -156,6 +156,13 @@ export type BackupDeleteResult = {
   filename: string;
 };
 
+export type AppUser = {
+  id: number;
+  username: string;
+  role: string;
+  is_active: boolean;
+};
+
 export type CartridgeUsageAnalyticsRow = {
   cartridge_model_id: number;
   model_name: string;

@@ -24,7 +24,7 @@ cp .env.prod.example .env
 
 - `POSTGRES_PASSWORD` - пароль базы данных.
 - `APP_SECRET_KEY` - длинный случайный секрет для подписи токенов.
-- `ADMIN_PASSWORD` - пароль администратора, не используйте `admin123`.
+- `ADMIN_USERNAME` / `ADMIN_PASSWORD` - логин и пароль первого администратора. Они используются только при первом bootstrap, если в базе еще нет активных пользователей.
 - `BACKEND_CORS_ORIGINS` - адрес сервера, например `http://192.168.1.10`.
 
 Если сервер открывается по IP `192.168.1.10`, пример:
@@ -53,7 +53,7 @@ docker compose -f docker-compose.prod.yml exec backend alembic upgrade head
 http://SERVER_IP
 ```
 
-Войдите под `ADMIN_USERNAME` и своим `ADMIN_PASSWORD` из `.env`.
+Войдите под `ADMIN_USERNAME` и своим `ADMIN_PASSWORD` из `.env`. После первого входа смените пароль через страницу `Профиль`; далее пользователи и хеши паролей хранятся в PostgreSQL, а `.env` нужен только для bootstrap пустой базы.
 
 ## Проверка
 

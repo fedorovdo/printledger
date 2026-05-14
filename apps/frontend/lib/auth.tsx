@@ -5,8 +5,10 @@ import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import { clearAuthToken, fetchJson, getAuthToken, postJson, setAuthToken } from "@/lib/api";
 
 export type AuthUser = {
+  id: number;
   username: string;
   role: string;
+  is_active: boolean;
 };
 
 type LoginResponse = {

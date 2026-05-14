@@ -12,5 +12,12 @@ class TokenResponse(BaseModel):
 
 
 class CurrentUserRead(BaseModel):
+    id: int
     username: str
     role: str
+    is_active: bool
+
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str

@@ -89,12 +89,14 @@ Read the full Russian deployment guide in [docs/DEPLOY_RU.md](docs/DEPLOY_RU.md)
 
 ## Authentication
 
-PrintLedger uses a simple local-network password login.
+PrintLedger uses local-network password login with users stored in PostgreSQL.
 
-- Configure the admin login in `.env` with `ADMIN_USERNAME` and `ADMIN_PASSWORD`.
+- `ADMIN_USERNAME` and `ADMIN_PASSWORD` in `.env` are used only to bootstrap the first admin when the users table has no active users.
+- Passwords are stored only as `password_hash` in PostgreSQL.
 - Configure token signing with `APP_SECRET_KEY`.
 - Default examples in `.env.example` are `admin` / `admin123`; change them before using the system in a real LAN.
-- To change the password later, edit `.env` and restart the backend with `docker compose up -d`.
+- After the first login, change the admin password from the web UI (`/profile`). Later `.env` password changes do not change existing database users.
+- Admins manage users from `/users`.
 - `GET /health` and `GET /api/db-check` are available without authorization for diagnostics.
 - Application API endpoints under `/api/*` require `Authorization: Bearer <token>`, except `/api/auth/login`, `/api/auth/logout`, and `/api/db-check`.
 
@@ -111,13 +113,13 @@ Invoke-RestMethod http://localhost:8000/api/auth/me -Headers $headers
 
 Backup files are written to `backups/` and are ignored by git. Make a backup before system updates, migrations, or risky manual database work.
 
-Backups can also be managed from the authenticated web UI:
+Backups can also be managed from the authenticated admin-only web UI:
 
 ```text
 http://localhost:3000/backup
 ```
 
-The web UI can list, create, download, restore, and delete backup files. Restore is protected by an explicit `RESTORE` confirmation because it overwrites the current database.
+Only users with the `admin` role see the backup section in navigation. The web UI can list, create, download, restore, and delete backup files. Restore is protected by an explicit `RESTORE` confirmation because it overwrites the current database.
 Before any web restore, PrintLedger automatically creates a pre-restore emergency backup named `printledger_pre_restore_YYYY-MM-DD_HH-mm-ss.dump`.
 Backup deletion through the UI is irreversible. Keep at least the latest known-good backup before cleaning old files.
 
@@ -165,7 +167,9 @@ Pages:
 - `http://localhost:3000/printers` - printer list with Active/In repair/Archive/All filters and quick-add forms for printer models and printers opened in a right-side panel.
 - `http://localhost:3000/locations` - location directory management with the location list first, organization/branch/location forms opened in a right-side panel, and room-aware labels.
 - `http://localhost:3000/operations` - cartridge inventory transaction list.
-- `http://localhost:3000/backup` - authenticated backup list, create, download, restore, and delete actions.
+- `http://localhost:3000/backup` - admin-only backup list, create, download, restore, and delete actions.
+- `http://localhost:3000/users` - admin-only user management.
+- `http://localhost:3000/profile` - current user profile and password change.
 - `http://localhost:3000/about` - application version, backend/database status, environment, and documentation hint.
 
 Table row actions use compact icon buttons with hover tooltips to keep printer, cartridge, location, model, and backup lists narrow and easy to scan.
@@ -667,5 +671,5 @@ docker compose exec backend alembic current
 ## Notes
 
 - Secrets are not stored in code. Use `.env` locally and keep `.env.example` as a template.
-- Full authentication, audit workflows, Excel import, and order request generation are intentionally not implemented yet.
+- Advanced authentication integrations, audit workflows, Excel import, and order request generation are intentionally not implemented yet.
 - Inventory balances should later be calculated from operation history rather than stored as a manually edited source of truth.

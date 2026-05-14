@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { IconButton } from "@/components/IconButton";
 import { EmptyRow, Message, PageHeader } from "@/components/Ui";
 import { deleteJson, downloadBlob, fetchJson, postJson } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
 import { dash } from "@/lib/labels";
 import type { BackupDeleteResult, BackupFile, BackupRestoreResult } from "@/lib/types";
@@ -21,6 +22,7 @@ function formatSize(bytes: number) {
 
 export default function BackupPage() {
   const { t } = useI18n();
+  const { user, loading: authLoading } = useAuth();
   const [backups, setBackups] = useState<BackupFile[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -31,6 +33,12 @@ export default function BackupPage() {
   const [success, setSuccess] = useState<string | null>(null);
 
   async function loadBackups() {
+    if (user?.role !== "admin") {
+      setBackups([]);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     setError(null);
     try {
@@ -122,8 +130,20 @@ export default function BackupPage() {
   }
 
   useEffect(() => {
+    if (authLoading) {
+      return;
+    }
     void loadBackups();
-  }, []);
+  }, [authLoading, user?.role]);
+
+  if (!authLoading && user?.role !== "admin") {
+    return (
+      <section>
+        <PageHeader title={t.backup} />
+        <Message info={t.backupsAdminOnly} />
+      </section>
+    );
+  }
 
   return (
     <section>

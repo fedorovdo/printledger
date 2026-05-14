@@ -13,7 +13,9 @@ const navItems = [
   { href: "/printers", key: "printers" },
   { href: "/locations", key: "locations" },
   { href: "/operations", key: "operations" },
-  { href: "/backup", key: "backup" },
+  { href: "/backup", key: "backup", adminOnly: true },
+  { href: "/users", key: "users", adminOnly: true },
+  { href: "/profile", key: "profile" },
   { href: "/about", key: "about" },
 ] as const;
 
@@ -47,7 +49,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </div>
         {!isLoginPage && user ? (
           <nav className="nav">
-            {navItems.map((item) => (
+            {navItems.filter((item) => !("adminOnly" in item) || user.role === "admin").map((item) => (
               <Link
                 className={pathname === item.href ? "nav-link active" : "nav-link"}
                 href={item.href}

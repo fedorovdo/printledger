@@ -53,7 +53,7 @@ class User(Base, TimestampMixin):
     full_name: Mapped[str | None] = mapped_column(String(255))
     password_hash: Mapped[str] = mapped_column(String(255))
     role: Mapped[UserRole] = mapped_column(
-        enum_column(UserRole), default=UserRole.viewer, nullable=False
+        enum_column(UserRole), default=UserRole.user, nullable=False
     )
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
 
