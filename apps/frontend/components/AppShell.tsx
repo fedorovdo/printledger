@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 
@@ -44,7 +45,14 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <div className="app-shell">
       <header className="topbar">
         <div className="brand">
-          <span className="brand-mark">PL</span>
+          <Image
+            alt="PrintLedger"
+            className="brand-logo"
+            height={32}
+            priority
+            src="/branding/logo-main.png"
+            width={32}
+          />
           <span>PrintLedger</span>
         </div>
         {!isLoginPage && user ? (

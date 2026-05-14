@@ -7,6 +7,11 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "PrintLedger",
   description: "Printer cartridge and consumables accounting",
+  icons: {
+    icon: "/branding/logo-main.png",
+    shortcut: "/branding/logo-main.png",
+    apple: "/branding/logo-main.png",
+  },
 };
 
 export default function RootLayout({

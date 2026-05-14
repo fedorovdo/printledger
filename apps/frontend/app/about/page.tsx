@@ -66,6 +66,13 @@ export default function AboutPage() {
           </dl>
         </div>
         <div className="panel">
+          <div className="about-branding">
+            <img
+              alt="PrintLedger"
+              className="about-illustration"
+              src="/branding/about-illustration.png"
+            />
+          </div>
           <h2>README</h2>
           <p>{t.docsHint}</p>
         </div>

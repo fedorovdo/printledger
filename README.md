@@ -1,8 +1,17 @@
 # PrintLedger
 
+![PrintLedger inventory preview](docs/assets/branding/printledger_inventory_management_simplified.png)
+
 PrintLedger is a web system for internal accounting of printer cartridges, consumables, and printers.
 
-This repository currently contains the early project foundation: FastAPI backend, Next.js frontend, PostgreSQL, Alembic migrations, and minimal CRUD APIs for core reference data.
+It helps a local IT or office team track cartridge stock, printer locations, repairs, backup files, and purchase planning from one Docker-based application.
+
+<p>
+  <img src="docs/assets/branding/minimalist_office_printer_icon_design.png" alt="Printer icon" width="120" />
+  <img src="docs/assets/branding/office_productivity_tools_icon_design.png" alt="Office productivity icon" width="120" />
+</p>
+
+This repository contains the PrintLedger application foundation: FastAPI backend, Next.js frontend, PostgreSQL, Alembic migrations, catalog CRUD APIs, inventory operations, printer lifecycle tracking, authentication, backup management, and dashboard analytics.
 
 ## Stack
 
