@@ -21,6 +21,7 @@ PrintLedger keeps the core inventory data in PostgreSQL, records cartridge movem
 ## Features
 
 - Printer, cartridge model, organization, branch, and location directories.
+- Cartridge-to-printer-model compatibility directory for safer installation choices.
 - Cartridge stock movements: stock-in, correction, install, remove, refill return, write-off, and return to stock.
 - Stock balance calculation from operation history.
 - Printer lifecycle history: movement, repair, archive, and write-off.

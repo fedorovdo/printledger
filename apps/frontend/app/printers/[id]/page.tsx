@@ -49,6 +49,7 @@ export default function PrinterCardPage() {
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [cartridgeModels, setCartridgeModels] = useState<CartridgeModel[]>([]);
+  const [compatibleCartridgeModels, setCompatibleCartridgeModels] = useState<CartridgeModel[]>([]);
   const [installed, setInstalled] = useState<InstalledCartridge[]>([]);
   const [cartridgeHistory, setCartridgeHistory] = useState<PrinterCartridgeHistory[]>([]);
   const [locationHistory, setLocationHistory] = useState<PrinterLocationHistory[]>([]);
@@ -64,6 +65,7 @@ export default function PrinterCardPage() {
   const [repairForm, setRepairForm] = useState({ service_company: "", reason: "", notes: "" });
   const [returnForm, setReturnForm] = useState({ repair_id: "", result: "", notes: "" });
   const [archiveForm, setArchiveForm] = useState({ archive_reason: "archived", comment: "" });
+  const [showAllCartridgeModels, setShowAllCartridgeModels] = useState(false);
   const [isEditingPrinter, setIsEditingPrinter] = useState(false);
   const [printerEditForm, setPrinterEditForm] = useState({
     printer_model_id: "",
@@ -120,6 +122,19 @@ export default function PrinterCardPage() {
     () => cartridgeModels.filter((model) => model.is_active),
     [cartridgeModels],
   );
+  const compatibleCartridgeModelIds = useMemo(
+    () => new Set(compatibleCartridgeModels.map((model) => model.id)),
+    [compatibleCartridgeModels],
+  );
+  const selectableInstallCartridgeModels = useMemo(
+    () => activeCartridgeModels.filter((model) => {
+      if (showAllCartridgeModels) {
+        return true;
+      }
+      return compatibleCartridgeModelIds.has(model.id);
+    }),
+    [activeCartridgeModels, compatibleCartridgeModelIds, showAllCartridgeModels],
+  );
   const selectablePrinterModels = useMemo(
     () => printerModels.filter(
       (model) => model.is_active || (printer && model.id === printer.printer_model_id),
@@ -156,12 +171,16 @@ export default function PrinterCardPage() {
         fetchJson<PrinterRepair[]>(`/api/printers/${printerId}/repairs`),
         fetchJson<PrinterArchiveHistory[]>(`/api/printers/${printerId}/archive-history`),
       ]);
+      const compatibleCartridgeModelData = await fetchJson<CartridgeModel[]>(
+        `/api/printer-models/${printerData.printer_model_id}/compatible-cartridge-models`,
+      );
       setPrinter(printerData);
       setPrinterModels(printerModelData);
       setLocations(locationData);
       setOrganizations(orgData);
       setBranches(branchData);
       setCartridgeModels(cartridgeModelData);
+      setCompatibleCartridgeModels(compatibleCartridgeModelData);
       setInstalled(installedData);
       setCartridgeHistory(cartridgeHistoryData);
       setLocationHistory(locationHistoryData);
@@ -328,7 +347,9 @@ export default function PrinterCardPage() {
           setInstallForm({ cartridge_model_id: "", item_condition: "new", slot_name: "Black", color_role: "black", comment: "" });
         }, t.cartridgeInstalled)}>
           <h2>{t.installCartridge}</h2>
-          <label>{t.cartridgeModel}<select required value={installForm.cartridge_model_id} onChange={(e) => setInstallForm({ ...installForm, cartridge_model_id: e.target.value })}><option value=""></option>{activeCartridgeModels.map((model) => <option key={model.id} value={model.id}>{model.model_name}</option>)}</select></label>
+          {compatibleCartridgeModels.length === 0 && !showAllCartridgeModels && <p className="muted">{t.noCompatibleCartridgesForPrinter}</p>}
+          <label className="checkbox"><input checked={showAllCartridgeModels} type="checkbox" onChange={(e) => setShowAllCartridgeModels(e.target.checked)} />{t.showAllCartridgeModels}</label>
+          <label>{t.cartridgeModel}<select required value={installForm.cartridge_model_id} onChange={(e) => setInstallForm({ ...installForm, cartridge_model_id: e.target.value })}><option value=""></option>{selectableInstallCartridgeModels.map((model) => <option key={model.id} value={model.id}>{model.model_name}</option>)}</select></label>
           <label>{t.condition}<select value={installForm.item_condition} onChange={(e) => setInstallForm({ ...installForm, item_condition: e.target.value })}><option value="new">{formatCartridgeCondition("new", locale)}</option><option value="refilled">{formatCartridgeCondition("refilled", locale)}</option></select></label>
           <label>{t.slotName}<input value={installForm.slot_name} onChange={(e) => setInstallForm({ ...installForm, slot_name: e.target.value })} /></label>
           <label>{t.colorRole}<select value={installForm.color_role} onChange={(e) => setInstallForm({ ...installForm, color_role: e.target.value })}><option value="black">{formatColorRole("black", locale)}</option><option value="cyan">{formatColorRole("cyan", locale)}</option><option value="magenta">{formatColorRole("magenta", locale)}</option><option value="yellow">{formatColorRole("yellow", locale)}</option><option value="other">{formatColorRole("other", locale)}</option></select></label>

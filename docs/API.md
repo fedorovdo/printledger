@@ -59,6 +59,7 @@ Printer models:
 - `POST /api/printer-models`
 - `PATCH /api/printer-models/{id}`
 - `DELETE /api/printer-models/{id}`
+- `GET /api/printer-models/{id}/compatible-cartridge-models`
 
 Cartridge models:
 
@@ -67,6 +68,9 @@ Cartridge models:
 - `POST /api/cartridge-models`
 - `PATCH /api/cartridge-models/{id}`
 - `DELETE /api/cartridge-models/{id}`
+- `GET /api/cartridge-models/{id}/compatible-printer-models`
+- `POST /api/cartridge-models/{id}/compatible-printer-models`
+- `DELETE /api/cartridge-models/{id}/compatible-printer-models/{printer_model_id}`
 
 Printers:
 

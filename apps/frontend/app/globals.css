@@ -663,6 +663,15 @@ tr:last-child td {
   gap: 12px;
 }
 
+.compatibility-controls {
+  grid-template-columns: minmax(220px, 1fr) max-content;
+}
+
+.compatibility-controls .button {
+  justify-self: start;
+  white-space: nowrap;
+}
+
 form {
   display: grid;
   gap: 12px;

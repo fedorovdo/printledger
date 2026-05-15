@@ -8,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.api.auth import require_admin
 from app.db.session import get_db
 from app.models import (
     Branch,
@@ -30,6 +31,7 @@ from app.schemas.catalog import (
     CartridgeModelCreate,
     CartridgeModelRead,
     CartridgeModelUpdate,
+    CompatiblePrinterModelCreate,
     LocationCreate,
     LocationRead,
     LocationUpdate,
@@ -165,6 +167,25 @@ def _ensure_cartridge_model_can_be_deleted(db: Session, cartridge_model_id: int)
             status_code=status.HTTP_409_CONFLICT,
             detail="Нельзя удалить модель картриджа: она используется в истории или остатках. Модель используется. Ее нельзя удалить, но можно деактивировать.",
         )
+
+
+def _get_compatibility_or_404(
+    db: Session,
+    cartridge_model_id: int,
+    printer_model_id: int,
+) -> PrinterModelCompatibleCartridge:
+    compatibility = db.scalar(
+        select(PrinterModelCompatibleCartridge).where(
+            PrinterModelCompatibleCartridge.cartridge_model_id == cartridge_model_id,
+            PrinterModelCompatibleCartridge.printer_model_id == printer_model_id,
+        )
+    )
+    if compatibility is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Связь совместимости не найдена.",
+        )
+    return compatibility
 
 
 def _ensure_organization_can_be_deleted(db: Session, organization_id: int) -> None:
@@ -586,6 +607,32 @@ def get_printer_model(item_id: int, db: Session = Depends(get_db)) -> PrinterMod
     return _get_or_404(db, PrinterModel, item_id)
 
 
+@router.get(
+    "/printer-models/{item_id}/compatible-cartridge-models",
+    response_model=list[CartridgeModelRead],
+    tags=["printer-models"],
+)
+def get_printer_model_compatible_cartridge_models(
+    item_id: int,
+    db: Session = Depends(get_db),
+) -> list[CartridgeModel]:
+    _get_or_404(db, PrinterModel, item_id)
+    return list(
+        db.scalars(
+            select(CartridgeModel)
+            .join(
+                PrinterModelCompatibleCartridge,
+                PrinterModelCompatibleCartridge.cartridge_model_id == CartridgeModel.id,
+            )
+            .where(
+                PrinterModelCompatibleCartridge.printer_model_id == item_id,
+                CartridgeModel.is_active.is_(True),
+            )
+            .order_by(CartridgeModel.model_name)
+        )
+    )
+
+
 @router.post(
     "/printer-models",
     response_model=PrinterModelRead,
@@ -635,6 +682,84 @@ def get_cartridge_models(
 )
 def get_cartridge_model(item_id: int, db: Session = Depends(get_db)) -> CartridgeModel:
     return _get_or_404(db, CartridgeModel, item_id)
+
+
+@router.get(
+    "/cartridge-models/{item_id}/compatible-printer-models",
+    response_model=list[PrinterModelRead],
+    tags=["cartridge-models"],
+)
+def get_cartridge_model_compatible_printer_models(
+    item_id: int,
+    db: Session = Depends(get_db),
+) -> list[PrinterModel]:
+    _get_or_404(db, CartridgeModel, item_id)
+    return list(
+        db.scalars(
+            select(PrinterModel)
+            .join(
+                PrinterModelCompatibleCartridge,
+                PrinterModelCompatibleCartridge.printer_model_id == PrinterModel.id,
+            )
+            .where(
+                PrinterModelCompatibleCartridge.cartridge_model_id == item_id,
+                PrinterModel.is_active.is_(True),
+            )
+            .order_by(PrinterModel.name)
+        )
+    )
+
+
+@router.post(
+    "/cartridge-models/{item_id}/compatible-printer-models",
+    response_model=PrinterModelRead,
+    status_code=status.HTTP_201_CREATED,
+    tags=["cartridge-models"],
+)
+def post_cartridge_model_compatible_printer_model(
+    item_id: int,
+    payload: CompatiblePrinterModelCreate,
+    db: Session = Depends(get_db),
+    _: Any = Depends(require_admin),
+) -> PrinterModel:
+    _get_or_404(db, CartridgeModel, item_id)
+    printer_model = _get_or_404(db, PrinterModel, payload.printer_model_id)
+    existing = db.scalar(
+        select(PrinterModelCompatibleCartridge).where(
+            PrinterModelCompatibleCartridge.cartridge_model_id == item_id,
+            PrinterModelCompatibleCartridge.printer_model_id == payload.printer_model_id,
+        )
+    )
+    if existing is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Совместимость уже существует.",
+        )
+    compatibility = PrinterModelCompatibleCartridge(
+        cartridge_model_id=item_id,
+        printer_model_id=payload.printer_model_id,
+    )
+    db.add(compatibility)
+    _commit_or_409(db, compatibility)
+    return printer_model
+
+
+@router.delete(
+    "/cartridge-models/{item_id}/compatible-printer-models/{printer_model_id}",
+    tags=["cartridge-models"],
+)
+def delete_cartridge_model_compatible_printer_model(
+    item_id: int,
+    printer_model_id: int,
+    db: Session = Depends(get_db),
+    _: Any = Depends(require_admin),
+) -> dict[str, str]:
+    _get_or_404(db, CartridgeModel, item_id)
+    _get_or_404(db, PrinterModel, printer_model_id)
+    compatibility = _get_compatibility_or_404(db, item_id, printer_model_id)
+    db.delete(compatibility)
+    db.commit()
+    return {"status": "deleted"}
 
 
 @router.post(

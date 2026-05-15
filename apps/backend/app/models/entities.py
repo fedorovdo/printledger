@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Any
 
-from sqlalchemy import Boolean, CheckConstraint, DateTime, Enum as SAEnum, ForeignKey, Integer, String, Text, func
+from sqlalchemy import Boolean, CheckConstraint, DateTime, Enum as SAEnum, ForeignKey, Integer, String, Text, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import INET, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -145,6 +145,13 @@ class CartridgeModel(Base, TimestampMixin):
 
 class PrinterModelCompatibleCartridge(Base):
     __tablename__ = "printer_model_compatible_cartridges"
+    __table_args__ = (
+        UniqueConstraint(
+            "printer_model_id",
+            "cartridge_model_id",
+            name="uq_pmcc_printer_model_cartridge_model",
+        ),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     printer_model_id: Mapped[int] = mapped_column(ForeignKey("printer_models.id"), index=True)

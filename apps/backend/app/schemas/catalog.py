@@ -149,6 +149,10 @@ class CartridgeModelRead(CartridgeModelBase, ORMModel):
     updated_at: datetime
 
 
+class CompatiblePrinterModelCreate(BaseModel):
+    printer_model_id: int
+
+
 class PrinterBase(BaseModel):
     printer_model_id: int
     serial_number: str | None = Field(default=None, max_length=100)
