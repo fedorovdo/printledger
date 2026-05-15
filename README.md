@@ -44,12 +44,35 @@ PrintLedger keeps the core inventory data in PostgreSQL, records cartridge movem
 
 ## Screenshots
 
-Screenshots will be added as the public documentation is polished.
+### Dashboard
 
-<p>
-  <img src="docs/assets/branding/minimalist_office_printer_icon_design.png" alt="Printer icon" width="120" />
-  <img src="docs/assets/branding/office_productivity_tools_icon_design.png" alt="Office productivity icon" width="120" />
-</p>
+![Dashboard](docs/assets/screenshots_en/dashboard_en.png)
+
+### Printers
+
+![Printers](docs/assets/screenshots_en/printers_en.png)
+
+### Printer card
+
+![Printer card](docs/assets/screenshots_en/printer-card_en.png)
+
+### Cartridges
+
+![Cartridges](docs/assets/screenshots_en/cartridges_en.png)
+
+### Cartridge card
+
+![Cartridge card](docs/assets/screenshots_en/cartridges_card_en.png)
+
+### Operations
+
+![Operations](docs/assets/screenshots_en/operations_en.png)
+
+### Backup
+
+![Backup](docs/assets/screenshots_en/backup_en.png)
+
+Russian UI screenshots are also available in `docs/assets/screenshots_ru/`.
 
 ## Quick Start
 
