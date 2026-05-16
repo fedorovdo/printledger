@@ -6,6 +6,8 @@ PrintLedger is a self-hosted open-source web system for managing printers, cartr
 
 It is built for small IT and office teams that need a practical replacement for scattered spreadsheets while keeping data on their own server.
 
+[Website](https://printledger.simplyadmin.org) · [Documentation](#documentation) · [Commercial Support](COMMERCIAL_SUPPORT.md)
+
 ## Problem
 
 Printer and cartridge accounting often starts in Excel and becomes hard to maintain:
