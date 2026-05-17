@@ -2,6 +2,26 @@
 
 ![PrintLedger inventory preview](docs/assets/branding/printledger_inventory_management_simplified.png)
 
+**Language / Язык:** [Русский](#русский) · [English](#english)
+
+## Русский
+
+**PrintLedger** — self-hosted open-source система для учета принтеров, картриджей, расходников, складских операций, ремонтов, локаций, пользователей и резервных копий внутри локальной сети.
+
+Проект подходит для небольших IT-команд и организаций, которые хотят заменить Excel-таблицы и ручной учет на структурированное внутреннее web-приложение.
+
+Полезные ссылки:
+
+- Сайт проекта: https://printledger.simplyadmin.org
+- Руководство пользователя: [docs/USER_GUIDE_RU.md](docs/USER_GUIDE_RU.md)
+- Развертывание: [docs/DEPLOY_RU.md](docs/DEPLOY_RU.md)
+- Backup/restore: [docs/BACKUP_RU.md](docs/BACKUP_RU.md)
+- Коммерческая поддержка: [COMMERCIAL_SUPPORT.md](COMMERCIAL_SUPPORT.md)
+
+---
+
+## English
+
 PrintLedger is a self-hosted open-source web system for managing printers, cartridges, consumables, stock movements, repairs, locations, and backup operations inside a local network.
 
 It is built for small IT and office teams that need a practical replacement for scattered spreadsheets while keeping data on their own server.
