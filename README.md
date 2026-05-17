@@ -147,6 +147,8 @@ docker compose -f docker-compose.prod.yml exec backend alembic upgrade head
 
 Read the Russian deployment guide: [docs/DEPLOY_RU.md](docs/DEPLOY_RU.md)
 
+Rocky Linux example: [docs/DEPLOY_ROCKY_RU.md](docs/DEPLOY_ROCKY_RU.md)
+
 ## Documentation
 
 - [Installation](docs/INSTALLATION.md)
@@ -159,6 +161,7 @@ Read the Russian deployment guide: [docs/DEPLOY_RU.md](docs/DEPLOY_RU.md)
 - [Full archived README](docs/README_FULL.md)
 - [Russian user guide](docs/USER_GUIDE_RU.md)
 - [Russian deployment guide](docs/DEPLOY_RU.md)
+- [Rocky Linux deployment guide](docs/DEPLOY_ROCKY_RU.md)
 - [Russian backup guide](docs/BACKUP_RU.md)
 
 ## Roadmap

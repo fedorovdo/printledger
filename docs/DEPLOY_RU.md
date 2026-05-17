@@ -153,3 +153,7 @@ docker compose -f docker-compose.prod.yml down
 ```
 
 Данные PostgreSQL хранятся в named volume `postgres_data`, поэтому обычный `down` их не удаляет.
+
+## Примеры установки
+
+- Подробный пример для Rocky Linux: [DEPLOY_ROCKY_RU.md](DEPLOY_ROCKY_RU.md)
