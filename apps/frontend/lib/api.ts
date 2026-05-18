@@ -1,3 +1,6 @@
+import { demoBackupBlob, demoFetch } from "@/lib/demo-data";
+import { demoReadOnlyMessage, isDemoMode } from "@/lib/demoMode";
+
 const API_BASE_URL = (process.env.NEXT_PUBLIC_API_BASE_URL ?? process.env.NEXT_PUBLIC_API_URL ?? "").replace(
   /\/$/,
   "",
@@ -52,6 +55,20 @@ export function buildApiUrl(path: string) {
 }
 
 async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
+  if (isDemoMode()) {
+    const method = init?.method?.toUpperCase() ?? "GET";
+    if (method !== "GET") {
+      if (path === "/api/auth/login") {
+        return { access_token: "demo-token", token_type: "bearer" } as T;
+      }
+      if (path === "/api/auth/logout") {
+        return { status: "ok" } as T;
+      }
+      throw new ApiError(demoReadOnlyMessage(), 403);
+    }
+    return demoFetch(path) as T;
+  }
+
   const token = getAuthToken();
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...init,
@@ -94,6 +111,10 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export async function downloadBlob(path: string): Promise<Blob> {
+  if (isDemoMode()) {
+    return demoBackupBlob();
+  }
+
   const token = getAuthToken();
   const response = await fetch(buildApiUrl(path), {
     headers: {

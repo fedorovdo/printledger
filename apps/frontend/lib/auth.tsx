@@ -3,6 +3,8 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
 
 import { clearAuthToken, fetchJson, getAuthToken, postJson, setAuthToken } from "@/lib/api";
+import { demoUsers } from "@/lib/demo-data";
+import { isDemoMode } from "@/lib/demoMode";
 
 export type AuthUser = {
   id: number;
@@ -31,6 +33,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   async function refreshUser() {
+    if (isDemoMode()) {
+      setUser(demoUsers[0]);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     if (!getAuthToken()) {
       setUser(null);
@@ -48,6 +56,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function login(username: string, password: string) {
+    if (isDemoMode()) {
+      setUser(demoUsers[0]);
+      return;
+    }
+
     clearAuthToken();
     const token = await postJson<LoginResponse>("/api/auth/login", { username, password });
     setAuthToken(token.access_token);
@@ -55,6 +68,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   async function logout() {
+    if (isDemoMode()) {
+      setUser(demoUsers[0]);
+      return;
+    }
+
     try {
       await postJson("/api/auth/logout", {});
     } finally {

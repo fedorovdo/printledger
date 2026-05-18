@@ -135,6 +135,16 @@ Default example credentials are defined in `.env.example`. Change them before us
 
 More details: [docs/INSTALLATION.md](docs/INSTALLATION.md)
 
+## Demo Mode
+
+The frontend can run in a read-only demo mode without backend or PostgreSQL.
+
+```bash
+NEXT_PUBLIC_DEMO_MODE=true
+```
+
+In demo mode the UI uses built-in mock data, automatically signs in as `demo-admin`, and blocks create/update/delete/restore operations.
+
 ## Production Deployment
 
 Production uses a separate Compose file with nginx:
