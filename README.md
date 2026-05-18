@@ -13,6 +13,7 @@
 Полезные ссылки:
 
 - Сайт проекта: https://printledger.simplyadmin.org
+- Демо: https://demo.printledger.simplyadmin.org
 - Руководство пользователя: [docs/USER_GUIDE_RU.md](docs/USER_GUIDE_RU.md)
 - Развертывание: [docs/DEPLOY_RU.md](docs/DEPLOY_RU.md)
 - Backup/restore: [docs/BACKUP_RU.md](docs/BACKUP_RU.md)
@@ -26,7 +27,7 @@ PrintLedger is a self-hosted open-source web system for managing printers, cartr
 
 It is built for small IT and office teams that need a practical replacement for scattered spreadsheets while keeping data on their own server.
 
-[Website](https://printledger.simplyadmin.org) · [Documentation](#documentation) · [Commercial Support](COMMERCIAL_SUPPORT.md)
+[Website](https://printledger.simplyadmin.org) · [Demo](https://demo.printledger.simplyadmin.org) · [Documentation](#documentation) · [Commercial Support](COMMERCIAL_SUPPORT.md)
 
 ## Problem
 
