@@ -6,6 +6,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 
 import { useAuth } from "@/lib/auth";
+import { isDemoMode } from "@/lib/demoMode";
 import { useI18n } from "@/lib/i18n";
 
 const navItems = [
@@ -26,6 +27,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const { user, loading, logout } = useAuth();
   const { locale, setLocale, t } = useI18n();
   const isLoginPage = pathname === "/login";
+  const demoMode = isDemoMode();
+  const demoBannerText = locale === "ru"
+    ? "Демо-режим: интерфейс интерактивный, но изменение данных отключено."
+    : "Demo mode: the interface is interactive, but data changes are disabled.";
 
   async function handleLogout() {
     await logout();
@@ -93,6 +98,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </div>
         </div>
       </header>
+      {demoMode && !isLoginPage && (
+        <div className="demo-banner" role="status">
+          {demoBannerText}
+        </div>
+      )}
       <main className="main">{!isLoginPage && (loading || !user) ? null : children}</main>
     </div>
   );

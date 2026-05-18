@@ -140,6 +140,16 @@ button {
   padding: 28px 24px 56px;
 }
 
+.demo-banner {
+  border-bottom: 1px solid #facc15;
+  background: #fffbeb;
+  color: #854d0e;
+  padding: 10px 24px;
+  text-align: center;
+  font-size: 14px;
+  font-weight: 700;
+}
+
 .page-header {
   display: flex;
   align-items: center;
