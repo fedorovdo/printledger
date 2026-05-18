@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:demo": "node scripts/build-demo.mjs",
     "start": "next start",
     "lint": "tsc --noEmit"
   },
