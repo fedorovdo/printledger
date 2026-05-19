@@ -349,6 +349,9 @@ export default function PrinterCardPage() {
           <h2>{t.installCartridge}</h2>
           {compatibleCartridgeModels.length === 0 && !showAllCartridgeModels && <p className="muted">{t.noCompatibleCartridgesForPrinter}</p>}
           <label className="checkbox"><input checked={showAllCartridgeModels} type="checkbox" onChange={(e) => setShowAllCartridgeModels(e.target.checked)} />{t.showAllCartridgeModels}</label>
+          <p className="muted">
+            {showAllCartridgeModels ? t.allCartridgeModelsCompatibilityDisabledHint : t.compatibleCartridgeModelsOnlyHint}
+          </p>
           <label>{t.cartridgeModel}<select required value={installForm.cartridge_model_id} onChange={(e) => setInstallForm({ ...installForm, cartridge_model_id: e.target.value })}><option value=""></option>{selectableInstallCartridgeModels.map((model) => <option key={model.id} value={model.id}>{model.model_name}</option>)}</select></label>
           <label>{t.condition}<select value={installForm.item_condition} onChange={(e) => setInstallForm({ ...installForm, item_condition: e.target.value })}><option value="new">{formatCartridgeCondition("new", locale)}</option><option value="refilled">{formatCartridgeCondition("refilled", locale)}</option></select></label>
           <label>{t.slotName}<input value={installForm.slot_name} onChange={(e) => setInstallForm({ ...installForm, slot_name: e.target.value })} /></label>
