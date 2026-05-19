@@ -3,12 +3,14 @@
 import { useEffect, useState } from "react";
 
 import { IconButton } from "@/components/IconButton";
+import { RefreshButton } from "@/components/RefreshButton";
 import { EmptyRow, Message, PageHeader } from "@/components/Ui";
 import { deleteJson, downloadBlob, fetchJson, postJson } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { useI18n } from "@/lib/i18n";
 import { dash } from "@/lib/labels";
 import type { BackupDeleteResult, BackupFile, BackupRestoreResult } from "@/lib/types";
+import { useAutoRefresh } from "@/lib/useAutoRefresh";
 
 function formatSize(bytes: number) {
   if (bytes < 1024) {
@@ -136,6 +138,8 @@ export default function BackupPage() {
     void loadBackups();
   }, [authLoading, user?.role]);
 
+  useAutoRefresh(loadBackups, 30_000, !authLoading && user?.role === "admin");
+
   if (!authLoading && user?.role !== "admin") {
     return (
       <section>
@@ -149,7 +153,17 @@ export default function BackupPage() {
     <section>
       <PageHeader
         title={t.backup}
-        action={<button className="button" disabled={saving} onClick={createBackup} type="button">{t.createBackup}</button>}
+        action={
+          <div className="page-actions">
+            <RefreshButton
+              disabled={saving || restoring}
+              label={t.refresh}
+              loading={loading}
+              onClick={() => void loadBackups()}
+            />
+            <button className="button" disabled={saving || restoring} onClick={createBackup} type="button">{t.createBackup}</button>
+          </div>
+        }
       />
       <Message loading={loading || saving || restoring} error={error} success={success} info={t.restoreScriptsOnly} />
 

@@ -164,6 +164,26 @@ button {
   gap: 8px;
 }
 
+.refresh-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.refresh-button-icon {
+  flex: 0 0 auto;
+}
+
+.refresh-button-icon.is-spinning {
+  animation: refresh-spin 0.8s linear infinite;
+}
+
+@keyframes refresh-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 h1,
 h2 {
   margin: 0;

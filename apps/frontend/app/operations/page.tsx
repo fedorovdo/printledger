@@ -2,11 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 
+import { RefreshButton } from "@/components/RefreshButton";
 import { EmptyRow, Message, PageHeader } from "@/components/Ui";
 import { fetchJson } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { dash, formatCartridgeCondition, labelTransaction } from "@/lib/labels";
 import type { CartridgeModel, CartridgeTransaction, Printer } from "@/lib/types";
+import { useAutoRefresh } from "@/lib/useAutoRefresh";
 
 export default function OperationsPage() {
   const { locale, t } = useI18n();
@@ -48,11 +50,13 @@ export default function OperationsPage() {
     void loadData();
   }, []);
 
+  useAutoRefresh(loadData, 30_000);
+
   return (
     <section>
       <PageHeader
         title={t.operations}
-        action={<button className="button secondary" onClick={loadData}>{t.refresh}</button>}
+        action={<RefreshButton label={t.refresh} loading={loading} onClick={() => void loadData()} />}
       />
       <Message loading={loading} error={error} />
       <div className="table-wrap">

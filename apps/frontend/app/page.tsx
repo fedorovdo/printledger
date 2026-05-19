@@ -2,11 +2,13 @@
 
 import { useEffect, useState } from "react";
 
+import { RefreshButton } from "@/components/RefreshButton";
 import { EmptyRow, PageHeader, Message } from "@/components/Ui";
 import { fetchJson } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import { dash, isActivePrinter, isRepairPrinter } from "@/lib/labels";
 import type { CartridgeModel, CartridgeUsageAnalytics, CartridgeUsageAnalyticsRow, Printer } from "@/lib/types";
+import { useAutoRefresh } from "@/lib/useAutoRefresh";
 
 type DashboardState = {
   backend: string;
@@ -74,9 +76,8 @@ export default function DashboardPage() {
     }
   }
 
-  function refreshDashboard() {
-    void loadDashboard();
-    void loadAnalytics();
+  async function refreshDashboard() {
+    await Promise.all([loadDashboard(), loadAnalytics()]);
   }
 
   useEffect(() => {
@@ -86,6 +87,8 @@ export default function DashboardPage() {
   useEffect(() => {
     void loadAnalytics();
   }, [usageDays, selectedCartridgeModelId, includeInactiveModels]);
+
+  useAutoRefresh(refreshDashboard, 30_000);
 
   useEffect(() => {
     if (includeInactiveModels || !selectedCartridgeModelId) {
@@ -101,7 +104,13 @@ export default function DashboardPage() {
     <section>
       <PageHeader
         title={t.dashboard}
-        action={<button className="button secondary" onClick={refreshDashboard}>{t.refresh}</button>}
+        action={
+          <RefreshButton
+            label={t.refresh}
+            loading={loading || analyticsLoading}
+            onClick={() => void refreshDashboard()}
+          />
+        }
       />
       <Message loading={loading} error={error} />
       {data && (
