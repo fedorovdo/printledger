@@ -16,6 +16,7 @@
 - Демо: https://demo.printledger.simplyadmin.org
 - Руководство пользователя: [docs/USER_GUIDE_RU.md](docs/USER_GUIDE_RU.md)
 - Развертывание: [docs/DEPLOY_RU.md](docs/DEPLOY_RU.md)
+- Установка через Docker images: [docs/DEPLOY_IMAGES_RU.md](docs/DEPLOY_IMAGES_RU.md)
 - Backup/restore: [docs/BACKUP_RU.md](docs/BACKUP_RU.md)
 - Коммерческая поддержка: [COMMERCIAL_SUPPORT.md](COMMERCIAL_SUPPORT.md)
 
@@ -158,6 +159,8 @@ docker compose -f docker-compose.prod.yml exec backend alembic upgrade head
 
 Read the Russian deployment guide: [docs/DEPLOY_RU.md](docs/DEPLOY_RU.md)
 
+Install with prebuilt GHCR images: [docs/DEPLOY_IMAGES_RU.md](docs/DEPLOY_IMAGES_RU.md)
+
 Rocky Linux example: [docs/DEPLOY_ROCKY_RU.md](docs/DEPLOY_ROCKY_RU.md)
 
 ## Documentation
@@ -173,6 +176,7 @@ Rocky Linux example: [docs/DEPLOY_ROCKY_RU.md](docs/DEPLOY_ROCKY_RU.md)
 - [Full archived README](docs/README_FULL.md)
 - [Russian user guide](docs/USER_GUIDE_RU.md)
 - [Russian deployment guide](docs/DEPLOY_RU.md)
+- [Russian deployment with GHCR images](docs/DEPLOY_IMAGES_RU.md)
 - [Rocky Linux deployment guide](docs/DEPLOY_ROCKY_RU.md)
 - [Russian backup guide](docs/BACKUP_RU.md)
 

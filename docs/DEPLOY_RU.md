@@ -156,4 +156,5 @@ docker compose -f docker-compose.prod.yml down
 
 ## Примеры установки
 
+- Установка через готовые GHCR images без локальной сборки: [DEPLOY_IMAGES_RU.md](DEPLOY_IMAGES_RU.md)
 - Подробный пример для Rocky Linux: [DEPLOY_ROCKY_RU.md](DEPLOY_ROCKY_RU.md)
