@@ -9,6 +9,26 @@
 
 Важно: для установки без `docker login` GHCR packages должны быть опубликованы как **Public**.
 
+## Быстрая установка через install-linux.sh
+
+Для чистого Linux-сервера можно использовать install script:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/fedorovdo/printledger/main/scripts/install-linux.sh | sudo bash
+```
+
+Скрипт:
+
+- устанавливает Docker Engine и Docker Compose plugin;
+- скачивает проект в `/opt/printledger`;
+- генерирует `.env` с безопасными случайными значениями;
+- запускает PrintLedger через `docker-compose.images.yml`;
+- скачивает готовые GHCR images без локальной сборки frontend/backend;
+- выполняет миграции Alembic;
+- выводит URL, `ADMIN_USERNAME` и сгенерированный `ADMIN_PASSWORD`.
+
+Если `/opt/printledger` уже существует, скрипт не удаляет его и завершает работу с подсказкой по обновлению.
+
 ## Требования
 
 - Linux-сервер в локальной сети.
