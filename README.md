@@ -163,6 +163,26 @@ Install with prebuilt GHCR images: [docs/DEPLOY_IMAGES_RU.md](docs/DEPLOY_IMAGES
 
 Rocky Linux example: [docs/DEPLOY_ROCKY_RU.md](docs/DEPLOY_ROCKY_RU.md)
 
+## Install with GHCR Docker Images
+
+PrintLedger can be installed with prebuilt Docker images, without building frontend or backend locally:
+
+- `ghcr.io/fedorovdo/printledger-backend:latest`
+- `ghcr.io/fedorovdo/printledger-frontend:latest`
+
+```bash
+git clone https://github.com/fedorovdo/printledger.git
+cd printledger
+cp .env.prod.example .env
+docker compose -f docker-compose.images.yml pull
+docker compose -f docker-compose.images.yml up -d
+docker compose -f docker-compose.images.yml exec backend alembic upgrade head
+```
+
+Before starting, edit `.env` and set your own database password, app secret, and admin password.
+
+Detailed guide: [docs/DEPLOY_IMAGES_RU.md](docs/DEPLOY_IMAGES_RU.md)
+
 ## Documentation
 
 - [Installation](docs/INSTALLATION.md)
