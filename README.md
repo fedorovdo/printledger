@@ -183,6 +183,12 @@ Before starting, edit `.env` and set your own database password, app secret, and
 
 Detailed guide: [docs/DEPLOY_IMAGES_RU.md](docs/DEPLOY_IMAGES_RU.md)
 
+Quick Linux installer:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/fedorovdo/printledger/main/scripts/install-linux.sh | sudo bash
+```
+
 ## Documentation
 
 - [Installation](docs/INSTALLATION.md)
