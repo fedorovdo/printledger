@@ -4,8 +4,16 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 
+import {
+  CartridgeModelForm,
+  cartridgeModelFormPayload,
+  cartridgeModelToFormValues,
+  emptyCartridgeModelFormValues,
+  type CartridgeModelFormValues,
+} from "@/components/CartridgeModelForm";
+import { SidePanel } from "@/components/SidePanel";
 import { EmptyRow, Message, PageHeader } from "@/components/Ui";
-import { ApiError, compactBody, deleteJson, fetchJson, postJson } from "@/lib/api";
+import { ApiError, compactBody, deleteJson, fetchJson, patchJson, postJson } from "@/lib/api";
 import { useI18n } from "@/lib/i18n";
 import {
   dash,
@@ -42,6 +50,8 @@ export default function CartridgeCardPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [showEditModel, setShowEditModel] = useState(false);
+  const [editModelForm, setEditModelForm] = useState<CartridgeModelFormValues>(emptyCartridgeModelFormValues);
   const [stockInForm, setStockInForm] = useState({ quantity: "1", item_condition: "new", reason: "", comment: "" });
   const [installForm, setInstallForm] = useState({ printer_id: "", item_condition: "new", slot_name: "Black", color_role: "black", comment: "" });
   const [correctionForm, setCorrectionForm] = useState({ quantity: "1", direction: "plus", item_condition: "new", reason: "", comment: "" });
@@ -137,6 +147,40 @@ export default function CartridgeCardPage() {
     }
   }
 
+  function startEditModel() {
+    if (!model) {
+      return;
+    }
+    setEditModelForm(cartridgeModelToFormValues(model));
+    setShowEditModel(true);
+    setError(null);
+    setSuccess(null);
+  }
+
+  function closeEditModel() {
+    setShowEditModel(false);
+  }
+
+  async function updateModel(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setSaving(true);
+    setError(null);
+    setSuccess(null);
+    try {
+      await patchJson<CartridgeModel>(
+        `/api/cartridge-models/${cartridgeId}`,
+        compactBody(cartridgeModelFormPayload(editModelForm)),
+      );
+      setShowEditModel(false);
+      setSuccess(t.modelUpdated);
+      await loadData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unknown error");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   const warehouseTotal = (stock?.stock_new ?? 0) + (stock?.stock_refilled ?? 0);
   const isLow = stock ? warehouseTotal < stock.min_stock_level : false;
 
@@ -181,9 +225,24 @@ export default function CartridgeCardPage() {
     <section>
       <PageHeader
         title={model?.model_name ?? t.cartridgeCard}
-        action={<Link className="button secondary" href="/cartridges">{t.back}</Link>}
+        action={(
+          <div className="page-actions">
+            <button className="button secondary" disabled={!model || loading || saving} onClick={startEditModel} type="button">{t.edit}</button>
+            <Link className="button secondary" href="/cartridges">{t.back}</Link>
+          </div>
+        )}
       />
       <Message loading={loading} error={error} success={success} />
+
+      <SidePanel onClose={closeEditModel} open={showEditModel} title={t.editCartridgeModel}>
+        <CartridgeModelForm
+          onCancel={closeEditModel}
+          onChange={setEditModelForm}
+          onSubmit={updateModel}
+          saving={saving}
+          values={editModelForm}
+        />
+      </SidePanel>
 
       {model && (
         <div className="detail-grid">

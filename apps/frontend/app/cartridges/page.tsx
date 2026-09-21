@@ -4,6 +4,12 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 
 import { ColumnVisibility } from "@/components/ColumnVisibility";
+import {
+  CartridgeModelForm,
+  cartridgeModelFormPayload,
+  cartridgeModelToFormValues,
+  emptyCartridgeModelFormValues as initialModel,
+} from "@/components/CartridgeModelForm";
 import { IconButton } from "@/components/IconButton";
 import { SidePanel } from "@/components/SidePanel";
 import { EmptyRow, Message, PageHeader } from "@/components/Ui";
@@ -19,15 +25,6 @@ import {
 } from "@/lib/labels";
 import { loadVisibleColumns, saveVisibleColumns, type VisibleColumns } from "@/lib/tablePrefs";
 import type { Branch, CartridgeModel, CartridgeStock, Location, Organization, Printer, PrinterModel } from "@/lib/types";
-
-const initialModel = {
-  vendor: "",
-  model_name: "",
-  purchase_sku: "",
-  cartridge_type: "toner",
-  min_stock_level: "0",
-  notes: "",
-};
 
 const initialStockIn = {
   cartridge_model_id: "",
@@ -233,17 +230,11 @@ export default function CartridgesPage() {
     setSuccess(null);
     try {
       if (editingModelId) {
-        await patchJson(`/api/cartridge-models/${editingModelId}`, compactBody({
-          ...modelForm,
-          min_stock_level: Number(modelForm.min_stock_level),
-        }));
+        await patchJson(`/api/cartridge-models/${editingModelId}`, compactBody(cartridgeModelFormPayload(modelForm)));
         setEditingModelId(null);
         setSuccess(t.modelUpdated);
       } else {
-        await postJson("/api/cartridge-models", compactBody({
-          ...modelForm,
-          min_stock_level: Number(modelForm.min_stock_level),
-        }));
+        await postJson("/api/cartridge-models", compactBody(cartridgeModelFormPayload(modelForm)));
         setSuccess(t.created);
       }
       setModelForm(initialModel);
@@ -258,14 +249,7 @@ export default function CartridgesPage() {
 
   function startEditModel(model: CartridgeModel) {
     setEditingModelId(model.id);
-    setModelForm({
-      vendor: model.vendor ?? "",
-      model_name: model.model_name,
-      purchase_sku: model.purchase_sku ?? "",
-      cartridge_type: model.cartridge_type,
-      min_stock_level: String(model.min_stock_level),
-      notes: model.notes ?? "",
-    });
+    setModelForm(cartridgeModelToFormValues(model));
     setShowModelForm(true);
     setError(null);
     setSuccess(null);
@@ -478,6 +462,7 @@ export default function CartridgesPage() {
                     {isCartridgeColumnVisible("actions") && <td>
                       <div className="icon-actions">
                         <IconButton href={`/cartridges/${item.cartridge_model_id}`} icon="↗" label={t.open} />
+                        <IconButton disabled={!model} icon="✎" label={t.edit} onClick={() => model && startEditModel(model)} />
                         <IconButton disabled={modelInactive} icon="📦" label={t.stockIn} onClick={() => openStockInPanel(item)} title={modelInactive ? t.inactiveModel : t.stockIn} />
                         <IconButton disabled={replacementDisabled} icon="⇄" label={t.replacement} onClick={() => openInstallPanel(item)} title={disabledTitle ?? t.replacement} />
                       </div>
@@ -540,20 +525,15 @@ export default function CartridgesPage() {
         open={showModelForm}
         title={editingModelId ? t.editCartridgeModel : t.addCartridgeModel}
       >
-        <form className="panel" onSubmit={createModel}>
-          <p className="muted">{t.cartridgeModelCatalogHint}</p>
-          <label>{t.vendor}<input list="cartridge-vendor-suggestions" value={modelForm.vendor} onChange={(e) => setModelForm({ ...modelForm, vendor: e.target.value })} /></label>
-          <datalist id="cartridge-vendor-suggestions">{vendorSuggestions.map((vendor) => <option key={vendor} value={vendor} />)}</datalist>
-          <label>{t.modelName}<input required value={modelForm.model_name} onChange={(e) => setModelForm({ ...modelForm, model_name: e.target.value })} /></label>
-          <label>{t.sku}<input value={modelForm.purchase_sku} onChange={(e) => setModelForm({ ...modelForm, purchase_sku: e.target.value })} /></label>
-          <label>{t.cartridgeType}<select value={modelForm.cartridge_type} onChange={(e) => setModelForm({ ...modelForm, cartridge_type: e.target.value })}><option value="toner">{formatCartridgeType("toner", locale)}</option><option value="ink">{formatCartridgeType("ink", locale)}</option><option value="other">{formatCartridgeType("other", locale)}</option></select></label>
-          <label>{t.minStockLevel}<input min="0" type="number" value={modelForm.min_stock_level} onChange={(e) => setModelForm({ ...modelForm, min_stock_level: e.target.value })} /></label>
-          <label>{t.notes}<textarea value={modelForm.notes} onChange={(e) => setModelForm({ ...modelForm, notes: e.target.value })} /></label>
-          <div className="inline-actions">
-            <button className="button" disabled={saving} type="submit">{t.save}</button>
-            <button className="button secondary" onClick={() => { setShowModelForm(false); cancelEditModel(); }} type="button">{t.cancel}</button>
-          </div>
-        </form>
+        <CartridgeModelForm
+          catalogHint
+          onCancel={() => { setShowModelForm(false); cancelEditModel(); }}
+          onChange={setModelForm}
+          onSubmit={createModel}
+          saving={saving}
+          values={modelForm}
+          vendorSuggestions={vendorSuggestions}
+        />
       </SidePanel>
 
       <SidePanel
