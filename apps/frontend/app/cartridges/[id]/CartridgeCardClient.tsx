@@ -23,14 +23,18 @@ import {
   formatColorRole,
   formatCorrectionDirection,
   formatPrintTechnology,
+  formatLocationLabel,
   formatPrinterLabel,
   labelTransaction,
 } from "@/lib/labels";
 import type {
+  Branch,
   CartridgeModel,
   CartridgeStock,
   CartridgeTransaction,
+  InstalledCartridge,
   Location,
+  Organization,
   Printer,
   PrinterModel,
 } from "@/lib/types";
@@ -46,6 +50,9 @@ export default function CartridgeCardPage() {
   const [printerModels, setPrinterModels] = useState<PrinterModel[]>([]);
   const [compatiblePrinterModels, setCompatiblePrinterModels] = useState<PrinterModel[]>([]);
   const [locations, setLocations] = useState<Location[]>([]);
+  const [organizations, setOrganizations] = useState<Organization[]>([]);
+  const [branches, setBranches] = useState<Branch[]>([]);
+  const [installedCartridges, setInstalledCartridges] = useState<InstalledCartridge[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -67,10 +74,29 @@ export default function CartridgeCardPage() {
     () => new Map(locations.map((location) => [location.id, location])),
     [locations],
   );
+  const organizationMap = useMemo(
+    () => new Map(organizations.map((organization) => [organization.id, organization])),
+    [organizations],
+  );
+  const branchMap = useMemo(
+    () => new Map(branches.map((branch) => [branch.id, branch])),
+    [branches],
+  );
+  const printerMap = useMemo(
+    () => new Map(printers.map((printer) => [printer.id, printer])),
+    [printers],
+  );
   const printerName = useMemo(
     () => new Map(printers.map((printer) => [printer.id, formatPrinterLabel(printer, printerModelMap, locationMap)])),
     [printers, printerModelMap, locationMap],
   );
+  const printerIdentity = useMemo(() => {
+    const emptyLocationMap = new Map<number, Location>();
+    return new Map(printers.map((printer) => [
+      printer.id,
+      formatPrinterLabel(printer, printerModelMap, emptyLocationMap, undefined, undefined, locale),
+    ]));
+  }, [locale, printers, printerModelMap]);
   const compatiblePrinterModelIds = useMemo(
     () => new Set(compatiblePrinterModels.map((printerModel) => printerModel.id)),
     [compatiblePrinterModels],
@@ -100,7 +126,18 @@ export default function CartridgeCardPage() {
     setLoading(true);
     setError(null);
     try {
-      const [modelData, stockData, historyData, printerData, printerModelData, compatiblePrinterModelData, locationData] = await Promise.all([
+      const [
+        modelData,
+        stockData,
+        historyData,
+        printerData,
+        printerModelData,
+        compatiblePrinterModelData,
+        locationData,
+        organizationData,
+        branchData,
+        installedCartridgeData,
+      ] = await Promise.all([
         fetchJson<CartridgeModel>(`/api/cartridge-models/${cartridgeId}`),
         fetchJson<CartridgeStock[]>("/api/cartridge-stock"),
         fetchJson<CartridgeTransaction[]>(`/api/cartridge-models/${cartridgeId}/history`),
@@ -108,6 +145,9 @@ export default function CartridgeCardPage() {
         fetchJson<PrinterModel[]>("/api/printer-models"),
         fetchJson<PrinterModel[]>(`/api/cartridge-models/${cartridgeId}/compatible-printer-models`),
         fetchJson<Location[]>("/api/locations"),
+        fetchJson<Organization[]>("/api/organizations"),
+        fetchJson<Branch[]>("/api/branches"),
+        fetchJson<InstalledCartridge[]>(`/api/cartridge-models/${cartridgeId}/installed-cartridges`),
       ]);
       setModel(modelData);
       setStock(stockData.find((item) => item.cartridge_model_id === cartridgeId) ?? null);
@@ -116,6 +156,9 @@ export default function CartridgeCardPage() {
       setPrinterModels(printerModelData);
       setCompatiblePrinterModels(compatiblePrinterModelData);
       setLocations(locationData);
+      setOrganizations(organizationData);
+      setBranches(branchData);
+      setInstalledCartridges(installedCartridgeData);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
     } finally {
@@ -266,6 +309,46 @@ export default function CartridgeCardPage() {
               <Metric label={t.total} value={stock?.total ?? 0} />
             </div>
             <p><span className={isLow ? "badge warning" : "badge ok"}>{isLow ? t.lowStock : t.ok}</span></p>
+          </div>
+        </div>
+      )}
+
+      {model && (
+        <div className="panel wide">
+          <h2>{t.installedIn}</h2>
+          <div className="table-wrap compact">
+            <table>
+              <thead>
+                <tr>
+                  <th>{t.printer}</th>
+                  <th>{t.location}</th>
+                  <th>{t.slotName}</th>
+                  <th>{t.condition}</th>
+                  <th>{t.installedAt}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {installedCartridges.length === 0 ? <EmptyRow colSpan={5} /> : installedCartridges.map((item) => {
+                  const printer = printerMap.get(item.printer_id);
+                  const currentLocation = printer?.current_location_id
+                    ? locationMap.get(printer.current_location_id)
+                    : undefined;
+                  return (
+                    <tr key={item.id}>
+                      <td>
+                        {printer
+                          ? <Link href={`/printers/${printer.id}`}>{dash(printerIdentity.get(printer.id))}</Link>
+                          : dash(null)}
+                      </td>
+                      <td>{formatLocationLabel(currentLocation, organizationMap, branchMap, locale)}</td>
+                      <td>{dash(item.slot_name)}</td>
+                      <td>{formatCartridgeCondition(item.item_condition, locale)}</td>
+                      <td>{new Date(item.installed_at).toLocaleString(locale === "ru" ? "ru-RU" : "en-US")}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         </div>
       )}

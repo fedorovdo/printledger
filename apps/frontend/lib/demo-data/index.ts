@@ -276,6 +276,12 @@ export function demoFetch(path: string): unknown {
 
   const installedMatch = pathname.match(/^\/api\/printers\/(\d+)\/installed-cartridges$/);
   if (installedMatch) return demoInstalledCartridges.filter((item) => item.printer_id === Number(installedMatch[1]) && item.status === "installed");
+  const cartridgeModelInstalledMatch = pathname.match(/^\/api\/cartridge-models\/(\d+)\/installed-cartridges$/);
+  if (cartridgeModelInstalledMatch) {
+    return demoInstalledCartridges
+      .filter((item) => item.cartridge_model_id === Number(cartridgeModelInstalledMatch[1]) && item.status === "installed")
+      .sort((left, right) => right.installed_at.localeCompare(left.installed_at));
+  }
   const printerCartridgeHistoryMatch = pathname.match(/^\/api\/printers\/(\d+)\/cartridge-history$/);
   if (printerCartridgeHistoryMatch) return demoPrinterCartridgeHistory.filter((item) => item.printer_id === Number(printerCartridgeHistoryMatch[1]));
   const locationHistoryMatch = pathname.match(/^\/api\/printers\/(\d+)\/location-history$/);

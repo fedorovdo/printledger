@@ -156,6 +156,26 @@ def get_printer_installed_cartridges(
 
 
 @router.get(
+    "/cartridge-models/{cartridge_model_id}/installed-cartridges",
+    response_model=list[PrinterInstalledCartridgeRead],
+    tags=["cartridge-models"],
+)
+def get_cartridge_model_installed_cartridges(
+    cartridge_model_id: int,
+    db: Session = Depends(get_db),
+) -> list[PrinterInstalledCartridge]:
+    query = (
+        select(PrinterInstalledCartridge)
+        .where(
+            PrinterInstalledCartridge.cartridge_model_id == cartridge_model_id,
+            PrinterInstalledCartridge.status == InstalledCartridgeStatus.installed,
+        )
+        .order_by(PrinterInstalledCartridge.installed_at.desc())
+    )
+    return list(db.scalars(query).all())
+
+
+@router.get(
     "/cartridge-models/{cartridge_model_id}/history",
     response_model=list[CartridgeInventoryTransactionRead],
     tags=["cartridge-models"],
@@ -187,4 +207,3 @@ def get_printer_cartridge_history(
         .order_by(PrinterCartridgeHistory.installed_at.desc())
     )
     return list(db.scalars(query).all())
-
