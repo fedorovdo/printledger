@@ -196,6 +196,7 @@ curl -fsSL https://raw.githubusercontent.com/fedorovdo/printledger/main/scripts/
 - [Authentication](docs/AUTH.md)
 - [Frontend overview](docs/FRONTEND.md)
 - [API overview](docs/API.md)
+- [Excel inventory guide (Russian)](docs/EXCEL_INVENTORY_RU.md)
 - [Public demo deployment](docs/DEMO_DEPLOY.md)
 - [Backup and restore](docs/BACKUP_RESTORE.md)
 - [Smoke tests](docs/SMOKE_TESTS.md)

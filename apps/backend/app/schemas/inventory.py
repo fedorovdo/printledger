@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -118,3 +119,36 @@ class CartridgeStockSummaryRead(BaseModel):
     installed_total: int
     total: int
     min_stock_level: int
+
+
+class CartridgeInventoryImportPreviewRow(BaseModel):
+    row_number: int
+    status: Literal["unchanged", "change", "error"]
+    cartridge_model_id: int | None = None
+    vendor: str | None = None
+    model_name: str | None = None
+    purchase_sku: str | None = None
+    current_new: int | None = None
+    actual_new: int | None = None
+    delta_new: int | None = None
+    current_refilled: int | None = None
+    actual_refilled: int | None = None
+    delta_refilled: int | None = None
+    installed_total: int | None = None
+    comment: str | None = None
+    errors: list[str] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+
+
+class CartridgeInventoryImportPreviewSummary(BaseModel):
+    total_rows: int
+    matched_rows: int
+    changed_rows: int
+    unchanged_rows: int
+    error_rows: int
+    snapshot_hash: str
+
+
+class CartridgeInventoryImportPreviewResponse(BaseModel):
+    summary: CartridgeInventoryImportPreviewSummary
+    rows: list[CartridgeInventoryImportPreviewRow]
