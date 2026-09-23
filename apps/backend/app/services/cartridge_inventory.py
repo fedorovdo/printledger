@@ -1,7 +1,7 @@
 from datetime import UTC, datetime
 
 from fastapi import HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
 from app.models import (
@@ -28,6 +28,19 @@ from app.schemas.inventory import (
 
 def _now() -> datetime:
     return datetime.now(UTC)
+
+
+CARTRIDGE_STOCK_MUTATION_LOCK_KEY = 0x50524E54
+
+
+def acquire_cartridge_stock_mutation_lock(db: Session) -> None:
+    """Serialize stock mutations without blocking read-only stock requests."""
+    if db.get_bind().dialect.name != "postgresql":
+        return
+    db.execute(
+        text("SELECT pg_advisory_xact_lock(:lock_key)"),
+        {"lock_key": CARTRIDGE_STOCK_MUTATION_LOCK_KEY},
+    )
 
 
 def _get_or_404(db: Session, model: type, item_id: int):
@@ -91,6 +104,7 @@ def create_stock_in_transaction(
     db: Session,
     payload: StockInRequest,
 ) -> CartridgeInventoryTransaction:
+    acquire_cartridge_stock_mutation_lock(db)
     _get_or_404(db, CartridgeModel, payload.cartridge_model_id)
     transaction_type = (
         CartridgeTransactionType.stock_in_new
@@ -113,6 +127,7 @@ def create_correction_transaction(
     db: Session,
     payload: CorrectionRequest,
 ) -> CartridgeInventoryTransaction:
+    acquire_cartridge_stock_mutation_lock(db)
     _get_or_404(db, CartridgeModel, payload.cartridge_model_id)
     if payload.item_condition is None:
         raise HTTPException(
@@ -158,6 +173,7 @@ def install_cartridge(
             detail="MVP supports installing exactly one cartridge at a time",
         )
 
+    acquire_cartridge_stock_mutation_lock(db)
     _get_or_404(db, CartridgeModel, payload.cartridge_model_id)
     printer = _get_or_404(db, Printer, payload.printer_id)
 
@@ -244,6 +260,7 @@ def remove_cartridge(
             detail="Only one remove follow-up action can be selected",
         )
 
+    acquire_cartridge_stock_mutation_lock(db)
     installed = _get_or_404(db, PrinterInstalledCartridge, payload.installed_cartridge_id)
     if installed.status != InstalledCartridgeStatus.installed:
         raise HTTPException(
@@ -346,6 +363,7 @@ def create_refill_return_transaction(
     db: Session,
     payload: RefillReturnRequest,
 ) -> CartridgeInventoryTransaction:
+    acquire_cartridge_stock_mutation_lock(db)
     _get_or_404(db, CartridgeModel, payload.cartridge_model_id)
     transaction = CartridgeInventoryTransaction(
         cartridge_model_id=payload.cartridge_model_id,
