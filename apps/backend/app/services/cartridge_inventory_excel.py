@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import hmac
 import json
 import re
 from collections import Counter
@@ -12,18 +13,26 @@ from openpyxl.styles import Alignment, Font, PatternFill
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models import CartridgeModel
+from app.models import CartridgeInventoryTransaction, CartridgeModel
+from app.models.enums import CartridgeCondition, CartridgeTransactionType
 from app.schemas.inventory import (
+    CartridgeInventoryImportAppliedTransaction,
+    CartridgeInventoryImportApplyResponse,
     CartridgeInventoryImportPreviewResponse,
     CartridgeInventoryImportPreviewRow,
     CartridgeInventoryImportPreviewSummary,
 )
-from app.services.cartridge_inventory import get_stock_summary
+from app.services.cartridge_inventory import (
+    acquire_cartridge_stock_mutation_lock,
+    get_stock_summary,
+)
 
 
 INVENTORY_SHEET_NAME = "Инвентаризация"
 MAX_IMPORT_ROWS = 2000
 MAX_IMPORT_FILE_SIZE = 5 * 1024 * 1024
+MAX_HISTORY_FILENAME_LENGTH = 180
+MAX_HISTORY_ROW_COMMENT_LENGTH = 2000
 
 MODEL_ID_HEADER = "ID модели"
 VENDOR_HEADER = "Производитель"
@@ -56,6 +65,14 @@ REQUIRED_IMPORT_HEADERS = (MODEL_NAME_HEADER, ACTUAL_NEW_HEADER, ACTUAL_REFILLED
 
 
 class InventoryExcelError(ValueError):
+    pass
+
+
+class InventoryApplyValidationError(InventoryExcelError):
+    pass
+
+
+class InventorySnapshotConflict(InventoryExcelError):
     pass
 
 
@@ -172,6 +189,181 @@ def preview_inventory_import(
     finally:
         if workbook is not None:
             workbook.close()
+
+
+def apply_inventory_import(
+    db: Session,
+    content: bytes,
+    expected_snapshot_hash: str,
+    filename: str,
+    created_by_user_id: int,
+) -> CartridgeInventoryImportApplyResponse:
+    try:
+        acquire_cartridge_stock_mutation_lock(db)
+        preview = preview_inventory_import(db, content)
+
+        error_rows = [row.row_number for row in preview.rows if row.status == "error"]
+        if error_rows:
+            row_numbers = ", ".join(str(row_number) for row_number in error_rows)
+            raise InventoryApplyValidationError(
+                f"Apply запрещен: файл содержит ошибки в строках {row_numbers}."
+            )
+
+        recalculated_hash = preview.summary.snapshot_hash
+        if (
+            re.fullmatch(r"[0-9a-f]{64}", expected_snapshot_hash) is None
+            or not hmac.compare_digest(expected_snapshot_hash, recalculated_hash)
+        ):
+            raise InventorySnapshotConflict(
+                "Остатки изменились после предварительного просмотра. "
+                "Выполните Preview повторно."
+            )
+
+        pending: list[
+            tuple[
+                CartridgeInventoryTransaction,
+                CartridgeInventoryImportPreviewRow,
+                CartridgeCondition,
+                str,
+            ]
+        ] = []
+        for row in preview.rows:
+            if row.status != "change":
+                continue
+            if row.cartridge_model_id is None or row.model_name is None:
+                raise InventoryApplyValidationError(
+                    f"Apply запрещен: строка {row.row_number} не сопоставлена с моделью."
+                )
+
+            _append_correction(
+                db,
+                pending,
+                row,
+                CartridgeCondition.new,
+                row.delta_new,
+                row.current_new,
+                filename,
+                created_by_user_id,
+            )
+            _append_correction(
+                db,
+                pending,
+                row,
+                CartridgeCondition.refilled,
+                row.delta_refilled,
+                row.current_refilled,
+                filename,
+                created_by_user_id,
+            )
+
+        db.flush()
+        transactions = [
+            CartridgeInventoryImportAppliedTransaction(
+                transaction_id=transaction.id,
+                cartridge_model_id=transaction.cartridge_model_id,
+                model_name=row.model_name or "",
+                condition=condition,
+                direction=direction,
+                quantity=transaction.quantity,
+            )
+            for transaction, row, condition, direction in pending
+        ]
+        response = CartridgeInventoryImportApplyResponse(
+            snapshot_hash=recalculated_hash,
+            models_processed=preview.summary.matched_rows,
+            changed_models=preview.summary.changed_rows,
+            transactions_created=len(transactions),
+            correction_plus_total=sum(
+                transaction.quantity
+                for transaction, _row, _condition, direction in pending
+                if direction == "plus"
+            ),
+            correction_minus_total=sum(
+                transaction.quantity
+                for transaction, _row, _condition, direction in pending
+                if direction == "minus"
+            ),
+            transactions=transactions,
+        )
+        db.commit()
+        return response
+    except Exception:
+        db.rollback()
+        raise
+
+
+def _append_correction(
+    db: Session,
+    pending: list[
+        tuple[
+            CartridgeInventoryTransaction,
+            CartridgeInventoryImportPreviewRow,
+            CartridgeCondition,
+            str,
+        ]
+    ],
+    row: CartridgeInventoryImportPreviewRow,
+    condition: CartridgeCondition,
+    delta: int | None,
+    current: int | None,
+    filename: str,
+    created_by_user_id: int,
+) -> None:
+    if delta is None or current is None or row.cartridge_model_id is None:
+        raise InventoryApplyValidationError(
+            f"Apply запрещен: строка {row.row_number} содержит неполные данные."
+        )
+    if delta == 0:
+        return
+
+    direction = "plus" if delta > 0 else "minus"
+    quantity = abs(delta)
+    if direction == "minus" and quantity > current:
+        raise InventorySnapshotConflict(
+            f"Невозможно уменьшить остаток в строке {row.row_number}: "
+            "текущий остаток недостаточен. Выполните Preview повторно."
+        )
+
+    transaction = CartridgeInventoryTransaction(
+        cartridge_model_id=row.cartridge_model_id,
+        transaction_type=(
+            CartridgeTransactionType.correction_plus
+            if direction == "plus"
+            else CartridgeTransactionType.correction_minus
+        ),
+        quantity=quantity,
+        item_condition=condition,
+        reason="Инвентаризация из Excel",
+        comment=_build_import_comment(filename, row.comment),
+        created_by_user_id=created_by_user_id,
+    )
+    db.add(transaction)
+    pending.append((transaction, row, condition, direction))
+
+
+def _build_import_comment(filename: str, row_comment: str | None) -> str:
+    basename = re.split(r"[\\/]", filename)[-1]
+    safe_filename = (
+        _sanitize_history_text(basename, MAX_HISTORY_FILENAME_LENGTH)
+        or "inventory.xlsx"
+    )
+    parts = [f"Файл: {safe_filename}"]
+    if row_comment:
+        safe_comment = _sanitize_history_text(
+            row_comment,
+            MAX_HISTORY_ROW_COMMENT_LENGTH,
+        )
+        if safe_comment:
+            parts.append(f"Комментарий Excel: {safe_comment}")
+    return "; ".join(parts)
+
+
+def _sanitize_history_text(value: str, max_length: int) -> str:
+    cleaned = re.sub(r"[\x00-\x1f\x7f]+", " ", value)
+    cleaned = re.sub(r"\s+", " ", cleaned).strip()
+    if len(cleaned) <= max_length:
+        return cleaned
+    return cleaned[: max_length - 3].rstrip() + "..."
 
 
 def _find_header_row(worksheet: Any) -> tuple[int, dict[str, int]]:

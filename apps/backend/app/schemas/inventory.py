@@ -152,3 +152,23 @@ class CartridgeInventoryImportPreviewSummary(BaseModel):
 class CartridgeInventoryImportPreviewResponse(BaseModel):
     summary: CartridgeInventoryImportPreviewSummary
     rows: list[CartridgeInventoryImportPreviewRow]
+
+
+class CartridgeInventoryImportAppliedTransaction(BaseModel):
+    transaction_id: int
+    cartridge_model_id: int
+    model_name: str
+    condition: CartridgeCondition
+    direction: Literal["plus", "minus"]
+    quantity: int = Field(gt=0)
+
+
+class CartridgeInventoryImportApplyResponse(BaseModel):
+    status: Literal["applied"] = "applied"
+    snapshot_hash: str
+    models_processed: int
+    changed_models: int
+    transactions_created: int
+    correction_plus_total: int
+    correction_minus_total: int
+    transactions: list[CartridgeInventoryImportAppliedTransaction]

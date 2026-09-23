@@ -1,11 +1,12 @@
 from datetime import date, datetime
 from io import BytesIO
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.api.auth import get_current_user
 from app.db.session import get_db
 from app.models import (
     CartridgeInventoryTransaction,
@@ -13,7 +14,9 @@ from app.models import (
     PrinterInstalledCartridge,
 )
 from app.models.enums import CartridgeTransactionType, InstalledCartridgeStatus
+from app.schemas.auth import CurrentUserRead
 from app.schemas.inventory import (
+    CartridgeInventoryImportApplyResponse,
     CartridgeInventoryImportPreviewResponse,
     CartridgeInventoryTransactionRead,
     CartridgeStockSummaryRead,
@@ -35,7 +38,10 @@ from app.services.cartridge_inventory import (
 )
 from app.services.cartridge_inventory_excel import (
     MAX_IMPORT_FILE_SIZE,
+    InventoryApplyValidationError,
     InventoryExcelError,
+    InventorySnapshotConflict,
+    apply_inventory_import,
     build_inventory_export,
     preview_inventory_import,
 )
@@ -193,6 +199,62 @@ async def preview_cartridge_inventory_import(
 
     try:
         return preview_inventory_import(db, content)
+    except InventoryExcelError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+
+
+@router.post(
+    "/cartridge-inventory/import/apply",
+    response_model=CartridgeInventoryImportApplyResponse,
+    tags=["cartridge-inventory"],
+)
+async def apply_cartridge_inventory_import(
+    file: UploadFile = File(...),
+    snapshot_hash: str = Form(...),
+    current_user: CurrentUserRead = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> CartridgeInventoryImportApplyResponse:
+    filename = file.filename or ""
+    if not filename.lower().endswith(".xlsx"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Разрешены только файлы .xlsx.",
+        )
+
+    content = await file.read(MAX_IMPORT_FILE_SIZE + 1)
+    await file.close()
+    if len(content) > MAX_IMPORT_FILE_SIZE:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail="Размер XLSX-файла не должен превышать 5 MB.",
+        )
+    if not content:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="XLSX-файл пуст.",
+        )
+
+    try:
+        return apply_inventory_import(
+            db,
+            content,
+            expected_snapshot_hash=snapshot_hash,
+            filename=filename,
+            created_by_user_id=current_user.id,
+        )
+    except InventoryApplyValidationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+    except InventorySnapshotConflict as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(exc),
+        ) from exc
     except InventoryExcelError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
