@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 
+import { CartridgeInventoryExcelPanel } from "@/components/CartridgeInventoryExcelPanel";
 import { ColumnVisibility } from "@/components/ColumnVisibility";
 import {
   CartridgeModelForm,
@@ -13,7 +14,8 @@ import {
 import { IconButton } from "@/components/IconButton";
 import { SidePanel } from "@/components/SidePanel";
 import { EmptyRow, Message, PageHeader } from "@/components/Ui";
-import { compactBody, deleteJson, fetchJson, patchJson, postJson } from "@/lib/api";
+import { compactBody, deleteJson, downloadApiBlob, fetchJson, patchJson, postJson } from "@/lib/api";
+import { demoReadOnlyMessage, isDemoMode } from "@/lib/demoMode";
 import { useI18n } from "@/lib/i18n";
 import {
   dash,
@@ -81,10 +83,13 @@ export default function CartridgesPage() {
   const [showModelForm, setShowModelForm] = useState(false);
   const [showStockInForm, setShowStockInForm] = useState(false);
   const [showInstallForm, setShowInstallForm] = useState(false);
+  const [showInventoryExcel, setShowInventoryExcel] = useState(false);
+  const [exportingExcel, setExportingExcel] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const demoMode = isDemoMode();
 
   const modelById = useMemo(
     () => new Map(models.map((model) => [model.id, model])),
@@ -208,8 +213,10 @@ export default function CartridgesPage() {
       setLocations(locationData);
       setOrganizations(orgData);
       setBranches(branchData);
+      return true;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
+      return false;
     } finally {
       setLoading(false);
     }
@@ -308,6 +315,7 @@ export default function CartridgesPage() {
     setShowStockInForm(true);
     setShowModelForm(false);
     setShowInstallForm(false);
+    setShowInventoryExcel(false);
   }
 
   function openStockInPanel(item: CartridgeStock) {
@@ -318,6 +326,7 @@ export default function CartridgesPage() {
     setShowStockInForm(true);
     setShowModelForm(false);
     setShowInstallForm(false);
+    setShowInventoryExcel(false);
   }
 
   function openInstallPanel(item: CartridgeStock) {
@@ -328,6 +337,53 @@ export default function CartridgesPage() {
     setShowInstallForm(true);
     setShowModelForm(false);
     setShowStockInForm(false);
+    setShowInventoryExcel(false);
+  }
+
+  function openInventoryExcelPanel() {
+    setShowInventoryExcel(true);
+    setShowModelForm(false);
+    setShowStockInForm(false);
+    setShowInstallForm(false);
+    cancelEditModel();
+    setError(null);
+    setSuccess(null);
+  }
+
+  async function exportInventoryExcel() {
+    if (demoMode || exportingExcel) {
+      return;
+    }
+    setExportingExcel(true);
+    setError(null);
+    setSuccess(null);
+    let objectUrl: string | null = null;
+    try {
+      const blob = await downloadApiBlob("/api/cartridge-inventory/export.xlsx");
+      objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = objectUrl;
+      link.download = `printledger_inventory_${new Date().toISOString().slice(0, 10)}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t.error);
+    } finally {
+      if (objectUrl) {
+        const urlToRevoke = objectUrl;
+        window.setTimeout(() => URL.revokeObjectURL(urlToRevoke), 0);
+      }
+      setExportingExcel(false);
+    }
+  }
+
+  async function refreshAfterInventoryApply() {
+    const refreshed = await loadData();
+    if (refreshed) {
+      setSuccess(t.inventoryApplied);
+    }
+    return refreshed;
   }
 
   function toggleStockSort(key: StockSortKey) {
@@ -401,7 +457,13 @@ export default function CartridgesPage() {
       <PageHeader
         action={(
           <div className="page-actions">
-            <button className="button secondary" onClick={() => { cancelEditModel(); setShowModelForm(true); setShowStockInForm(false); setShowInstallForm(false); }} type="button">
+            <button className="button secondary" disabled={demoMode || exportingExcel} onClick={() => void exportInventoryExcel()} title={demoMode ? demoReadOnlyMessage() : t.exportExcel} type="button">
+              {exportingExcel ? t.loading : t.exportExcel}
+            </button>
+            <button className="button secondary" disabled={demoMode} onClick={openInventoryExcelPanel} title={demoMode ? demoReadOnlyMessage() : t.excelInventory} type="button">
+              {t.excelInventory}
+            </button>
+            <button className="button secondary" onClick={() => { cancelEditModel(); setShowModelForm(true); setShowStockInForm(false); setShowInstallForm(false); setShowInventoryExcel(false); }} type="button">
               + {t.cartridgeModel}
             </button>
             <button className="button secondary" onClick={openGenericStockInPanel} type="button">
@@ -572,6 +634,12 @@ export default function CartridgesPage() {
           </div>
         </form>
       </SidePanel>
+
+      <CartridgeInventoryExcelPanel
+        onApplied={refreshAfterInventoryApply}
+        onClose={() => setShowInventoryExcel(false)}
+        open={showInventoryExcel}
+      />
     </section>
   );
 }
