@@ -82,6 +82,8 @@ Printers:
 
 ## Cartridge Inventory
 
+- `GET /api/cartridge-inventory/export.xlsx`
+- `POST /api/cartridge-inventory/import/preview` (`multipart/form-data`, field `file`)
 - `POST /api/cartridge-transactions/stock-in`
 - `POST /api/cartridge-transactions/correction`
 - `POST /api/cartridge-transactions/install`
@@ -92,6 +94,8 @@ Printers:
 - `GET /api/printers/{printer_id}/installed-cartridges`
 - `GET /api/cartridge-models/{cartridge_model_id}/history`
 - `GET /api/printers/{printer_id}/cartridge-history`
+
+The XLSX inventory preview is read-only. It validates physical `new` and `refilled` warehouse counts, calculates deltas, and returns a `snapshot_hash`; it does not create transactions or modify stock. See [EXCEL_INVENTORY_RU.md](EXCEL_INVENTORY_RU.md).
 
 ## Printer Lifecycle
 

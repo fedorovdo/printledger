@@ -1,6 +1,8 @@
-from datetime import datetime
+from datetime import date, datetime
+from io import BytesIO
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -12,6 +14,7 @@ from app.models import (
 )
 from app.models.enums import CartridgeTransactionType, InstalledCartridgeStatus
 from app.schemas.inventory import (
+    CartridgeInventoryImportPreviewResponse,
     CartridgeInventoryTransactionRead,
     CartridgeStockSummaryRead,
     CorrectionRequest,
@@ -29,6 +32,12 @@ from app.services.cartridge_inventory import (
     get_stock_summary,
     install_cartridge,
     remove_cartridge,
+)
+from app.services.cartridge_inventory_excel import (
+    MAX_IMPORT_FILE_SIZE,
+    InventoryExcelError,
+    build_inventory_export,
+    preview_inventory_import,
 )
 
 router = APIRouter(prefix="/api")
@@ -133,6 +142,62 @@ def get_cartridge_transactions(
 )
 def get_cartridge_stock(db: Session = Depends(get_db)) -> list[CartridgeStockSummaryRead]:
     return get_stock_summary(db)
+
+
+@router.get(
+    "/cartridge-inventory/export.xlsx",
+    tags=["cartridge-inventory"],
+)
+def export_cartridge_inventory(
+    db: Session = Depends(get_db),
+) -> StreamingResponse:
+    content = build_inventory_export(db)
+    filename = f"printledger_inventory_{date.today().isoformat()}.xlsx"
+    return StreamingResponse(
+        BytesIO(content),
+        media_type=(
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        ),
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.post(
+    "/cartridge-inventory/import/preview",
+    response_model=CartridgeInventoryImportPreviewResponse,
+    tags=["cartridge-inventory"],
+)
+async def preview_cartridge_inventory_import(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+) -> CartridgeInventoryImportPreviewResponse:
+    filename = file.filename or ""
+    if not filename.lower().endswith(".xlsx"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Разрешены только файлы .xlsx.",
+        )
+
+    content = await file.read(MAX_IMPORT_FILE_SIZE + 1)
+    await file.close()
+    if len(content) > MAX_IMPORT_FILE_SIZE:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail="Размер XLSX-файла не должен превышать 5 MB.",
+        )
+    if not content:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="XLSX-файл пуст.",
+        )
+
+    try:
+        return preview_inventory_import(db, content)
+    except InventoryExcelError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
 
 
 @router.get(
