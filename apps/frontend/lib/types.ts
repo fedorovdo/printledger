@@ -196,3 +196,56 @@ export type CartridgeUsageAnalytics = {
   rows: CartridgeUsageAnalyticsRow[];
   monthly_breakdown: CartridgeUsageMonthlyBreakdown[] | null;
 };
+
+export type CartridgeInventoryImportPreviewSummary = {
+  total_rows: number;
+  matched_rows: number;
+  changed_rows: number;
+  unchanged_rows: number;
+  error_rows: number;
+  snapshot_hash: string;
+};
+
+export type CartridgeInventoryImportPreviewRow = {
+  row_number: number;
+  status: "unchanged" | "change" | "error";
+  cartridge_model_id: number | null;
+  vendor: string | null;
+  model_name: string | null;
+  purchase_sku: string | null;
+  current_new: number | null;
+  actual_new: number | null;
+  delta_new: number | null;
+  current_refilled: number | null;
+  actual_refilled: number | null;
+  delta_refilled: number | null;
+  installed_total: number | null;
+  comment: string | null;
+  errors: string[];
+  warnings: string[];
+};
+
+export type CartridgeInventoryImportPreviewResponse = {
+  summary: CartridgeInventoryImportPreviewSummary;
+  rows: CartridgeInventoryImportPreviewRow[];
+};
+
+export type CartridgeInventoryImportAppliedTransaction = {
+  transaction_id: number;
+  cartridge_model_id: number;
+  model_name: string;
+  condition: "new" | "refilled";
+  direction: "plus" | "minus";
+  quantity: number;
+};
+
+export type CartridgeInventoryImportApplyResponse = {
+  status: "applied";
+  snapshot_hash: string;
+  models_processed: number;
+  changed_models: number;
+  transactions_created: number;
+  correction_plus_total: number;
+  correction_minus_total: number;
+  transactions: CartridgeInventoryImportAppliedTransaction[];
+};

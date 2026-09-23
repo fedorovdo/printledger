@@ -50,6 +50,30 @@ function redirectToLogin(path: string) {
   }
 }
 
+async function responseError(response: Response, path: string): Promise<ApiError> {
+  let message = `${response.status} ${response.statusText}`;
+  try {
+    const data = (await response.json()) as { detail?: unknown };
+    if (typeof data.detail === "string") {
+      message = data.detail;
+    } else if (Array.isArray(data.detail)) {
+      message = data.detail
+        .map((item) =>
+          typeof item === "object" && item !== null && "msg" in item
+            ? String(item.msg)
+            : JSON.stringify(item),
+        )
+        .join("; ");
+    }
+  } catch {
+    // Keep the HTTP status message when the response has no JSON detail.
+  }
+  if (response.status === 401) {
+    redirectToLogin(path);
+  }
+  return new ApiError(message, response.status);
+}
+
 export function buildApiUrl(path: string) {
   return `${API_BASE_URL}${path}`;
 }
@@ -80,27 +104,7 @@ async function requestJson<T>(path: string, init?: RequestInit): Promise<T> {
   });
 
   if (!response.ok) {
-    let message = `${response.status} ${response.statusText}`;
-    try {
-      const data = (await response.json()) as { detail?: unknown };
-      if (typeof data.detail === "string") {
-        message = data.detail;
-      } else if (Array.isArray(data.detail)) {
-        message = data.detail
-          .map((item) =>
-            typeof item === "object" && item !== null && "msg" in item
-              ? String(item.msg)
-              : JSON.stringify(item),
-          )
-          .join("; ");
-      }
-    } catch {
-      // Keep the HTTP status message.
-    }
-    if (response.status === 401) {
-      redirectToLogin(path);
-    }
-    throw new ApiError(message, response.status);
+    throw await responseError(response, path);
   }
 
   if (response.status === 204) {
@@ -123,13 +127,54 @@ export async function downloadBlob(path: string): Promise<Blob> {
   });
 
   if (!response.ok) {
-    if (response.status === 401) {
-      redirectToLogin(path);
-    }
-    throw new ApiError(`${response.status} ${response.statusText}`, response.status);
+    throw await responseError(response, path);
   }
 
   return response.blob();
+}
+
+export async function downloadApiBlob(path: string): Promise<Blob> {
+  if (isDemoMode()) {
+    throw new ApiError(demoReadOnlyMessage(), 403);
+  }
+
+  const token = getAuthToken();
+  const response = await fetch(buildApiUrl(path), {
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+  });
+
+  if (!response.ok) {
+    throw await responseError(response, path);
+  }
+
+  return response.blob();
+}
+
+export async function postFormData<T>(path: string, formData: FormData): Promise<T> {
+  if (isDemoMode()) {
+    throw new ApiError(demoReadOnlyMessage(), 403);
+  }
+
+  const token = getAuthToken();
+  const response = await fetch(buildApiUrl(path), {
+    method: "POST",
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: formData,
+  });
+
+  if (!response.ok) {
+    throw await responseError(response, path);
+  }
+
+  if (response.status === 204) {
+    return undefined as T;
+  }
+
+  return (await response.json()) as T;
 }
 
 export function fetchJson<T>(path: string): Promise<T> {

@@ -10,9 +10,10 @@ type SidePanelProps = {
   onClose: () => void;
   children: ReactNode;
   footer?: ReactNode;
+  size?: "default" | "wide";
 };
 
-export function SidePanel({ open, title, onClose, children, footer }: SidePanelProps) {
+export function SidePanel({ open, title, onClose, children, footer, size = "default" }: SidePanelProps) {
   const { t } = useI18n();
 
   useEffect(() => {
@@ -48,7 +49,7 @@ export function SidePanel({ open, title, onClose, children, footer }: SidePanelP
 
   return (
     <div aria-modal="true" className="side-panel-overlay" onClick={onClose} role="dialog">
-      <aside className="side-panel" onClick={(event) => event.stopPropagation()}>
+      <aside className={`side-panel${size === "wide" ? " side-panel-wide" : ""}`} onClick={(event) => event.stopPropagation()}>
         <div className="side-panel-header">
           <h2>{title}</h2>
           <button aria-label={t.close} className="side-panel-close" onClick={onClose} type="button">
