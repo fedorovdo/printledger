@@ -337,6 +337,10 @@ h2 {
   gap: 6px;
 }
 
+.cartridge-row-actions {
+  flex-wrap: nowrap;
+}
+
 .icon-button {
   display: inline-grid;
   width: 32px;
