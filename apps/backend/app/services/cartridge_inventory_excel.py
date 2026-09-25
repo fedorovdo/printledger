@@ -6,6 +6,7 @@ import json
 import re
 from collections import Counter
 from io import BytesIO
+from itertools import islice
 from typing import Any
 
 from openpyxl import Workbook, load_workbook
@@ -366,10 +367,13 @@ def _sanitize_history_text(value: str, max_length: int) -> str:
     return cleaned[: max_length - 3].rstrip() + "..."
 
 
-def _find_header_row(worksheet: Any) -> tuple[int, dict[str, int]]:
-    required = {_normalize_header(header) for header in REQUIRED_IMPORT_HEADERS}
+def _find_header_row(
+    worksheet: Any,
+    required_headers: tuple[str, ...] = REQUIRED_IMPORT_HEADERS,
+) -> tuple[int, dict[str, int]]:
+    required = {_normalize_header(header) for header in required_headers}
     for row_number, row in enumerate(
-        worksheet.iter_rows(min_row=1, max_row=min(worksheet.max_row, 100), values_only=True),
+        islice(worksheet.iter_rows(min_row=1, values_only=True), 100),
         start=1,
     ):
         columns: dict[str, int] = {}
@@ -380,7 +384,7 @@ def _find_header_row(worksheet: Any) -> tuple[int, dict[str, int]]:
         if required.issubset(columns):
             return row_number, columns
 
-    missing = ", ".join(REQUIRED_IMPORT_HEADERS)
+    missing = ", ".join(required_headers)
     raise InventoryExcelError(
         f"Не найдена строка заголовков. Обязательные колонки: {missing}."
     )
