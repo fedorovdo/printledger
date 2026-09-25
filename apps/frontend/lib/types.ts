@@ -249,3 +249,47 @@ export type CartridgeInventoryImportApplyResponse = {
   correction_minus_total: number;
   transactions: CartridgeInventoryImportAppliedTransaction[];
 };
+
+export type CartridgeCatalogImportPreviewSummary = {
+  total_rows: number;
+  existing_rows: number;
+  create_rows: number;
+  error_rows: number;
+  snapshot_hash: string;
+};
+
+export type CartridgeCatalogImportPreviewRow = {
+  row_number: number;
+  status: "create" | "existing" | "error";
+  vendor: string | null;
+  model_name: string | null;
+  purchase_sku: string | null;
+  cartridge_type: string | null;
+  min_stock_level: number | null;
+  notes: string | null;
+  existing_model_id: number | null;
+  errors: string[];
+  warnings: string[];
+};
+
+export type CartridgeCatalogImportPreviewResponse = {
+  summary: CartridgeCatalogImportPreviewSummary;
+  rows: CartridgeCatalogImportPreviewRow[];
+};
+
+export type CartridgeCatalogImportCreatedModel = {
+  id: number;
+  model_name: string;
+  vendor: string | null;
+  purchase_sku: string | null;
+  cartridge_type: string;
+};
+
+export type CartridgeCatalogImportApplyResponse = {
+  status: "applied";
+  snapshot_hash: string;
+  models_processed: number;
+  models_created: number;
+  existing_models: number;
+  created: CartridgeCatalogImportCreatedModel[];
+};

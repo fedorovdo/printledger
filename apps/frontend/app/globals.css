@@ -569,6 +569,10 @@ tr:last-child td {
   overflow: hidden;
 }
 
+.catalog-import-summary {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
 .inventory-summary-item {
   display: grid;
   gap: 5px;
@@ -616,6 +620,10 @@ tr:last-child td {
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
   margin: 0;
+}
+
+.catalog-import-success dl {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .inventory-success-summary dl div {
