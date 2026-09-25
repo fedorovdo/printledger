@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 
+import { CartridgeCatalogExcelPanel } from "@/components/CartridgeCatalogExcelPanel";
 import { CartridgeInventoryExcelPanel } from "@/components/CartridgeInventoryExcelPanel";
 import { ColumnVisibility } from "@/components/ColumnVisibility";
 import {
@@ -15,6 +16,7 @@ import { IconButton } from "@/components/IconButton";
 import { SidePanel } from "@/components/SidePanel";
 import { EmptyRow, Message, PageHeader } from "@/components/Ui";
 import { compactBody, deleteJson, downloadApiBlob, fetchJson, patchJson, postJson } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
 import { demoReadOnlyMessage, isDemoMode } from "@/lib/demoMode";
 import { useI18n } from "@/lib/i18n";
 import {
@@ -64,6 +66,7 @@ const cartridgeColumnDefaults: VisibleColumns = {
 
 export default function CartridgesPage() {
   const { locale, t } = useI18n();
+  const { user } = useAuth();
   const [stock, setStock] = useState<CartridgeStock[]>([]);
   const [models, setModels] = useState<CartridgeModel[]>([]);
   const [printers, setPrinters] = useState<Printer[]>([]);
@@ -84,6 +87,7 @@ export default function CartridgesPage() {
   const [showStockInForm, setShowStockInForm] = useState(false);
   const [showInstallForm, setShowInstallForm] = useState(false);
   const [showInventoryExcel, setShowInventoryExcel] = useState(false);
+  const [showCatalogExcel, setShowCatalogExcel] = useState(false);
   const [exportingExcel, setExportingExcel] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -258,6 +262,7 @@ export default function CartridgesPage() {
     setEditingModelId(model.id);
     setModelForm(cartridgeModelToFormValues(model));
     setShowModelForm(true);
+    setShowCatalogExcel(false);
     setError(null);
     setSuccess(null);
   }
@@ -316,6 +321,7 @@ export default function CartridgesPage() {
     setShowModelForm(false);
     setShowInstallForm(false);
     setShowInventoryExcel(false);
+    setShowCatalogExcel(false);
   }
 
   function openStockInPanel(item: CartridgeStock) {
@@ -327,6 +333,7 @@ export default function CartridgesPage() {
     setShowModelForm(false);
     setShowInstallForm(false);
     setShowInventoryExcel(false);
+    setShowCatalogExcel(false);
   }
 
   function openInstallPanel(item: CartridgeStock) {
@@ -338,10 +345,23 @@ export default function CartridgesPage() {
     setShowModelForm(false);
     setShowStockInForm(false);
     setShowInventoryExcel(false);
+    setShowCatalogExcel(false);
   }
 
   function openInventoryExcelPanel() {
     setShowInventoryExcel(true);
+    setShowCatalogExcel(false);
+    setShowModelForm(false);
+    setShowStockInForm(false);
+    setShowInstallForm(false);
+    cancelEditModel();
+    setError(null);
+    setSuccess(null);
+  }
+
+  function openCatalogExcelPanel() {
+    setShowCatalogExcel(true);
+    setShowInventoryExcel(false);
     setShowModelForm(false);
     setShowStockInForm(false);
     setShowInstallForm(false);
@@ -382,6 +402,14 @@ export default function CartridgesPage() {
     const refreshed = await loadData();
     if (refreshed) {
       setSuccess(t.inventoryApplied);
+    }
+    return refreshed;
+  }
+
+  async function refreshAfterCatalogApply() {
+    const refreshed = await loadData();
+    if (refreshed) {
+      setSuccess(t.catalogImportApplied);
     }
     return refreshed;
   }
@@ -463,7 +491,12 @@ export default function CartridgesPage() {
             <button className="button secondary" disabled={demoMode} onClick={openInventoryExcelPanel} title={demoMode ? demoReadOnlyMessage() : t.excelInventory} type="button">
               {t.excelInventory}
             </button>
-            <button className="button secondary" onClick={() => { cancelEditModel(); setShowModelForm(true); setShowStockInForm(false); setShowInstallForm(false); setShowInventoryExcel(false); }} type="button">
+            {user?.role === "admin" ? (
+              <button className="button secondary" disabled={demoMode} onClick={openCatalogExcelPanel} title={demoMode ? demoReadOnlyMessage() : t.catalogImportTitle} type="button">
+                {t.catalogImportTitle}
+              </button>
+            ) : null}
+            <button className="button secondary" onClick={() => { cancelEditModel(); setShowModelForm(true); setShowStockInForm(false); setShowInstallForm(false); setShowInventoryExcel(false); setShowCatalogExcel(false); }} type="button">
               + {t.cartridgeModel}
             </button>
             <button className="button secondary" onClick={openGenericStockInPanel} type="button">
@@ -639,6 +672,11 @@ export default function CartridgesPage() {
         onApplied={refreshAfterInventoryApply}
         onClose={() => setShowInventoryExcel(false)}
         open={showInventoryExcel}
+      />
+      <CartridgeCatalogExcelPanel
+        onApplied={refreshAfterCatalogApply}
+        onClose={() => setShowCatalogExcel(false)}
+        open={showCatalogExcel}
       />
     </section>
   );
