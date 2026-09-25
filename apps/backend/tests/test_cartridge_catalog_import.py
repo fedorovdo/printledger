@@ -2,6 +2,8 @@ import io
 import os
 import re
 import tempfile
+import threading
+import time
 import unittest
 import zipfile
 from unittest.mock import patch
@@ -15,6 +17,7 @@ from app.api.auth import require_admin
 from app.api.cartridge_catalog import router as cartridge_catalog_router
 from app.api.catalog import patch_cartridge_model, post_cartridge_model
 from app.db.base import Base
+from app.db.session import SessionLocal
 from app.models import (
     CartridgeInventoryTransaction,
     CartridgeModel,
@@ -652,6 +655,190 @@ class CartridgeCatalogImportTests(unittest.TestCase):
             )
 
         self.assertEqual(events, ["lock", "validate"])
+
+    def test_regular_type_only_patch_locks_before_model_lookup(self):
+        model = self._add_model("MODEL")
+        events = []
+
+        with (
+            patch(
+                "app.api.catalog.acquire_cartridge_catalog_mutation_lock",
+                side_effect=lambda _db: events.append("lock"),
+            ),
+            patch(
+                "app.api.catalog._get_or_404",
+                side_effect=lambda *_args: events.append("lookup") or model,
+            ),
+            patch(
+                "app.api.catalog._validate_cartridge_model_unique"
+            ) as validate_unique,
+        ):
+            patch_cartridge_model(
+                model.id,
+                CartridgeModelUpdate(cartridge_type=CartridgeType.ink),
+                self.db,
+            )
+
+        self.assertEqual(events, ["lock", "lookup"])
+        validate_unique.assert_not_called()
+        self.assertEqual(model.cartridge_type, CartridgeType.ink)
+
+    @unittest.skipUnless(
+        os.getenv("RUN_POSTGRES_CONCURRENCY_TESTS") == "1",
+        "PostgreSQL concurrency test is opt-in",
+    )
+    def test_type_only_patch_waits_for_catalog_apply_lock(self):
+        suffix = time.time_ns()
+        existing_name = f"TYPE-PATCH-CONCURRENCY-{suffix}"
+        existing_sku = f"TYPE-PATCH-SKU-{suffix}"
+        new_name = f"APPLY-CONCURRENCY-{suffix}"
+        new_sku = f"APPLY-CONCURRENCY-SKU-{suffix}"
+        existing_id: int | None = None
+        apply_elapsed = 0.0
+        patch_elapsed = 0.0
+        apply_errors: list[Exception] = []
+        patch_errors: list[Exception] = []
+
+        try:
+            with SessionLocal() as setup_db:
+                existing = CartridgeModel(
+                    vendor="Concurrency Vendor",
+                    model_name=existing_name,
+                    purchase_sku=existing_sku,
+                    cartridge_type=CartridgeType.toner,
+                    min_stock_level=0,
+                    is_active=True,
+                )
+                setup_db.add(existing)
+                setup_db.commit()
+                setup_db.refresh(existing)
+                existing_id = existing.id
+
+            content = _workbook_bytes(
+                [
+                    (
+                        "Concurrency Vendor",
+                        existing_name,
+                        existing_sku,
+                        "toner",
+                        0,
+                        None,
+                    ),
+                    (
+                        "Concurrency Vendor",
+                        new_name,
+                        new_sku,
+                        "toner",
+                        0,
+                        None,
+                    ),
+                ]
+            )
+            with SessionLocal() as preview_db:
+                expected_hash = preview_cartridge_catalog_import(
+                    preview_db,
+                    content,
+                ).summary.snapshot_hash
+
+            import app.services.cartridge_catalog_excel as catalog_excel
+
+            original_acquire = (
+                catalog_excel.acquire_cartridge_catalog_mutation_lock
+            )
+            original_preview = catalog_excel.preview_cartridge_catalog_import
+            apply_has_lock = threading.Event()
+
+            def observed_acquire(db):
+                original_acquire(db)
+                apply_has_lock.set()
+
+            def slow_preview(db, payload):
+                time.sleep(1.0)
+                return original_preview(db, payload)
+
+            def request_a():
+                nonlocal apply_elapsed
+                started = time.perf_counter()
+                try:
+                    with SessionLocal() as db:
+                        apply_cartridge_catalog_import(
+                            db,
+                            content,
+                            expected_hash,
+                        )
+                except Exception as exc:
+                    apply_errors.append(exc)
+                finally:
+                    apply_elapsed = time.perf_counter() - started
+
+            def request_b():
+                nonlocal patch_elapsed
+                if not apply_has_lock.wait(timeout=5):
+                    patch_errors.append(TimeoutError("Apply did not acquire lock"))
+                    return
+                started = time.perf_counter()
+                try:
+                    with SessionLocal() as db:
+                        patch_cartridge_model(
+                            existing_id,
+                            CartridgeModelUpdate(
+                                cartridge_type=CartridgeType.ink
+                            ),
+                            db,
+                        )
+                except Exception as exc:
+                    patch_errors.append(exc)
+                finally:
+                    patch_elapsed = time.perf_counter() - started
+
+            with (
+                patch(
+                    "app.services.cartridge_catalog_excel."
+                    "acquire_cartridge_catalog_mutation_lock",
+                    side_effect=observed_acquire,
+                ),
+                patch(
+                    "app.services.cartridge_catalog_excel."
+                    "preview_cartridge_catalog_import",
+                    side_effect=slow_preview,
+                ),
+            ):
+                apply_thread = threading.Thread(target=request_a)
+                patch_thread = threading.Thread(target=request_b)
+                apply_thread.start()
+                patch_thread.start()
+                apply_thread.join(timeout=10)
+                patch_thread.join(timeout=10)
+
+            self.assertFalse(apply_thread.is_alive())
+            self.assertFalse(patch_thread.is_alive())
+            self.assertEqual(apply_errors, [])
+            self.assertEqual(patch_errors, [])
+            self.assertGreaterEqual(patch_elapsed, 0.8)
+
+            with SessionLocal() as verify_db:
+                updated = verify_db.get(CartridgeModel, existing_id)
+                created_count = verify_db.scalar(
+                    select(func.count(CartridgeModel.id)).where(
+                        CartridgeModel.model_name == new_name
+                    )
+                )
+                self.assertIsNotNone(updated)
+                self.assertEqual(updated.cartridge_type, CartridgeType.ink)
+                self.assertEqual(created_count, 1)
+
+            print(
+                "type-only PATCH concurrency: "
+                f"apply={apply_elapsed:.3f}s, patch={patch_elapsed:.3f}s"
+            )
+        finally:
+            with SessionLocal() as cleanup_db:
+                cleanup_db.query(CartridgeModel).filter(
+                    CartridgeModel.model_name.in_(
+                        [existing_name, new_name]
+                    )
+                ).delete(synchronize_session=False)
+                cleanup_db.commit()
 
 
 if __name__ == "__main__":

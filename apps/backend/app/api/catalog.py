@@ -786,11 +786,17 @@ def patch_cartridge_model(
     item_id: int, payload: CartridgeModelUpdate, db: Session = Depends(get_db)
 ) -> CartridgeModel:
     updates = payload.model_dump(exclude_unset=True)
-    identifier_fields = {"vendor", "model_name", "purchase_sku"}
-    if identifier_fields.intersection(updates):
+    catalog_lock_fields = {
+        "vendor",
+        "model_name",
+        "purchase_sku",
+        "cartridge_type",
+    }
+    identity_fields = {"vendor", "model_name", "purchase_sku"}
+    if catalog_lock_fields.intersection(updates):
         acquire_cartridge_catalog_mutation_lock(db)
     item = _get_or_404(db, CartridgeModel, item_id)
-    if identifier_fields.intersection(updates):
+    if identity_fields.intersection(updates):
         _validate_cartridge_model_unique(
             db,
             _merged_value(item, updates, "vendor"),
