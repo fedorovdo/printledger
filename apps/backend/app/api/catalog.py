@@ -45,6 +45,7 @@ from app.schemas.catalog import (
     PrinterRead,
     PrinterUpdate,
 )
+from app.services.cartridge_catalog import acquire_cartridge_catalog_mutation_lock
 
 router = APIRouter(prefix="/api")
 
@@ -771,6 +772,7 @@ def delete_cartridge_model_compatible_printer_model(
 def post_cartridge_model(
     payload: CartridgeModelCreate, db: Session = Depends(get_db)
 ) -> CartridgeModel:
+    acquire_cartridge_catalog_mutation_lock(db)
     _validate_cartridge_model_unique(db, payload.vendor, payload.model_name, payload.purchase_sku)
     return create_item(db, CartridgeModel, payload)
 
@@ -783,15 +785,19 @@ def post_cartridge_model(
 def patch_cartridge_model(
     item_id: int, payload: CartridgeModelUpdate, db: Session = Depends(get_db)
 ) -> CartridgeModel:
-    item = _get_or_404(db, CartridgeModel, item_id)
     updates = payload.model_dump(exclude_unset=True)
-    _validate_cartridge_model_unique(
-        db,
-        _merged_value(item, updates, "vendor"),
-        _merged_value(item, updates, "model_name"),
-        _merged_value(item, updates, "purchase_sku"),
-        item.id,
-    )
+    identifier_fields = {"vendor", "model_name", "purchase_sku"}
+    if identifier_fields.intersection(updates):
+        acquire_cartridge_catalog_mutation_lock(db)
+    item = _get_or_404(db, CartridgeModel, item_id)
+    if identifier_fields.intersection(updates):
+        _validate_cartridge_model_unique(
+            db,
+            _merged_value(item, updates, "vendor"),
+            _merged_value(item, updates, "model_name"),
+            _merged_value(item, updates, "purchase_sku"),
+            item.id,
+        )
     return update_item(db, item, payload)
 
 
@@ -801,6 +807,7 @@ def patch_cartridge_model(
     tags=["cartridge-models"],
 )
 def delete_cartridge_model(item_id: int, db: Session = Depends(get_db)) -> dict[str, Any]:
+    acquire_cartridge_catalog_mutation_lock(db)
     item = _get_or_404(db, CartridgeModel, item_id)
     _ensure_cartridge_model_can_be_deleted(db, item.id)
     return _delete_or_409(db, item)

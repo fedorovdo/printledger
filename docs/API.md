@@ -72,6 +72,13 @@ Cartridge models:
 - `POST /api/cartridge-models/{id}/compatible-printer-models`
 - `DELETE /api/cartridge-models/{id}/compatible-printer-models/{printer_model_id}`
 
+Admin-only catalog import:
+
+- `POST /api/cartridge-catalog/import/preview` (`multipart/form-data`, field `file`)
+- `POST /api/cartridge-catalog/import/apply` (`multipart/form-data`, fields `file`, `snapshot_hash`)
+
+Catalog Preview classifies rows as `create`, `existing`, or `error` without writing to the database. Apply reparses the same XLSX under a catalog-mutation lock, rejects a stale snapshot with `409`, blocks the whole batch on any invalid row, and atomically creates only missing `CartridgeModel` rows. It never creates stock transactions or overwrites existing models. See [EXCEL_CATALOG_IMPORT_RU.md](EXCEL_CATALOG_IMPORT_RU.md).
+
 Printers:
 
 - `GET /api/printers`
