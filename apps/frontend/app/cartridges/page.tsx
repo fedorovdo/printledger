@@ -555,7 +555,7 @@ export default function CartridgesPage() {
                     {isCartridgeColumnVisible("min_stock") && <td>{item.min_stock_level}</td>}
                     {isCartridgeColumnVisible("status") && <td><span className={isLow ? "badge warning" : "badge ok"}>{isLow ? t.lowStock : t.ok}</span></td>}
                     {isCartridgeColumnVisible("actions") && <td>
-                      <div className="icon-actions">
+                      <div className="icon-actions cartridge-row-actions">
                         <IconButton href={`/cartridges/${item.cartridge_model_id}`} icon="↗" label={t.open} />
                         <IconButton disabled={!model} icon="✎" label={t.edit} onClick={() => model && startEditModel(model)} />
                         <IconButton disabled={modelInactive} icon="📦" label={t.stockIn} onClick={() => openStockInPanel(item)} title={modelInactive ? t.inactiveModel : t.stockIn} />
